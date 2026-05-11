@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { Activity, BarChart3, CalendarDays, Dumbbell, Shield, Trophy, Users } from 'lucide-react';
 import { RosterScreen } from './components/RosterScreen';
+import { TacticsScreen } from './components/TacticsScreen';
 import { openingRoundFixtures } from './data/fixtures';
 import { userTeam, teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import type { Fixture, Team } from './types/basketball';
 
-type ActiveView = 'Dashboard' | 'Roster';
+type ActiveView = 'Dashboard' | 'Roster' | 'Tactics';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
   { label: 'Roster', icon: Users, enabled: true },
-  { label: 'Tactics', icon: Shield, enabled: false },
+  { label: 'Tactics', icon: Shield, enabled: true },
   { label: 'Schedule', icon: CalendarDays, enabled: false },
   { label: 'League', icon: Trophy, enabled: false },
   { label: 'Training', icon: Dumbbell, enabled: false },
@@ -105,7 +106,7 @@ export function App() {
           </div>
         </header>
 
-        {activeView === 'Dashboard' ? (
+        {activeView === 'Dashboard' && (
           <DashboardView
             handleSimulateNextFixture={handleSimulateNextFixture}
             handleSimulateOpeningRound={handleSimulateOpeningRound}
@@ -119,9 +120,10 @@ export function App() {
             userStanding={userStanding}
             userWonLatestGame={userWonLatestGame}
           />
-        ) : (
-          <RosterScreen team={userTeam} />
         )}
+
+        {activeView === 'Roster' && <RosterScreen team={userTeam} />}
+        {activeView === 'Tactics' && <TacticsScreen team={userTeam} />}
       </section>
     </main>
   );
