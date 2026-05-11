@@ -2,6 +2,8 @@ export type Nation = 'England' | 'Wales' | 'Scotland';
 
 export type Position = 'PG' | 'SG' | 'SF' | 'PF' | 'C';
 
+export type PlayerRole = 'Starter' | 'Rotation' | 'Depth' | 'Prospect';
+
 export type PlayerArchetype =
   | 'Floor General'
   | 'Sharpshooter'
@@ -21,6 +23,7 @@ export type Player = {
   name: string;
   age: number;
   position: Position;
+  role: PlayerRole;
   archetype: PlayerArchetype;
   overall: number;
   potential: number;
