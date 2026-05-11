@@ -430,7 +430,8 @@ button:disabled {
 .tactics-screen,
 .schedule-screen,
 .match-result-screen,
-.league-screen {
+.league-screen,
+.playoffs-screen {
   display: grid;
   gap: 1rem;
 }
@@ -450,7 +451,9 @@ button:disabled {
 .schedule-summary-grid,
 .result-grid,
 .league-summary-grid,
-.league-summary-panels {
+.league-summary-panels,
+.playoff-summary-grid,
+.playoff-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
@@ -458,7 +461,8 @@ button:disabled {
 
 .roster-summary-grid,
 .schedule-summary-grid,
-.league-summary-grid {
+.league-summary-grid,
+.playoff-summary-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
@@ -468,7 +472,8 @@ button:disabled {
 
 .roster-summary-card,
 .schedule-summary-card,
-.league-summary-card {
+.league-summary-card,
+.playoff-summary-card {
   display: flex;
   min-height: 8.5rem;
   flex-direction: column;
@@ -477,7 +482,8 @@ button:disabled {
 
 .roster-summary-card strong,
 .schedule-summary-card strong,
-.league-summary-card strong {
+.league-summary-card strong,
+.playoff-summary-card strong {
   font-size: clamp(1.3rem, 2vw, 2rem);
   letter-spacing: -0.05em;
 }
@@ -523,7 +529,8 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.standings-table-row.user-team {
+.standings-table-row.user-team,
+.seed-team.user-team {
   border-color: rgba(249, 115, 22, 0.42);
   background: rgba(249, 115, 22, 0.08);
 }
@@ -639,7 +646,9 @@ button:disabled {
 .fixture-row,
 .box-score-row,
 .empty-result-panel,
-.league-mini-row {
+.league-mini-row,
+.seed-team,
+.playoff-matchup {
   border: 1px solid rgba(148, 163, 184, 0.14);
   padding: 0.85rem;
   background: rgba(5, 10, 18, 0.34);
@@ -683,7 +692,8 @@ button:disabled {
 .round-list,
 .fixture-list,
 .box-score-list,
-.league-mini-list {
+.league-mini-list,
+.seed-list {
   display: grid;
   gap: 0.75rem;
 }
@@ -900,6 +910,31 @@ button:disabled {
   font-weight: 900;
 }
 
+.playoff-panel,
+.playoff-matchup {
+  border-color: rgba(249, 115, 22, 0.22);
+}
+
+.seed-team {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.seed-team span:last-child,
+.seed-team div span {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.playoff-versus {
+  margin: 0.75rem 0;
+  color: #f97316;
+  font-weight: 900;
+  text-align: center;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -923,7 +958,9 @@ button:disabled {
   .result-grid,
   .result-score-layout,
   .league-summary-grid,
-  .league-summary-panels {
+  .league-summary-panels,
+  .playoff-summary-grid,
+  .playoff-grid {
     grid-template-columns: 1fr;
   }
 
