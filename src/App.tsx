@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Activity, BarChart3, CalendarDays, Dumbbell, Shield, Trophy, Users } from 'lucide-react';
+import { openingRoundFixtures } from './data/fixtures';
 import { userTeam, teams } from './data/teams';
+import { calculateStandings } from './game/calculateStandings';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
+import type { Fixture, Team } from './types/basketball';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, active: true },
@@ -13,22 +16,47 @@ const navItems = [
   { label: 'Analytics', icon: BarChart3, active: false },
 ];
 
-const opponentTeam = teams.find((team) => team.id === 'london-lionsgate') ?? teams[1];
+const userFixture = openingRoundFixtures.find((fixture) => fixture.homeTeamId === userTeam.id || fixture.awayTeamId === userTeam.id)
+  ?? openingRoundFixtures[0];
 
 const topPlayers = [...userTeam.roster]
   .sort((a, b) => b.overall - a.overall)
   .slice(0, 3);
 
 export function App() {
-  const [latestResult, setLatestResult] = useState<SimulatedGameResult | null>(null);
+  const [results, setResults] = useState<SimulatedGameResult[]>([]);
 
-  const userWonLatestGame = latestResult?.winnerTeamId === userTeam.id;
-  const currentRecord = latestResult
-    ? `${userWonLatestGame ? 1 : 0}-${userWonLatestGame ? 0 : 1}`
-    : `${userTeam.record.wins}-${userTeam.record.losses}`;
+  const latestResult = results.at(-1) ?? null;
+  const standings = calculateStandings(teams, results);
+  const userStanding = standings.find((standing) => standing.teamId === userTeam.id);
+  const nextFixture = openingRoundFixtures.find((fixture) => !hasResultForFixture(fixture, results));
+  const userGameResult = results.find((result) => isResultForFixture(userFixture, result)) ?? null;
+  const userWonLatestGame = userGameResult?.winnerTeamId === userTeam.id;
+  const opponentTeam = getTeam(userFixture.awayTeamId);
+  const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId) : null;
+  const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId) : null;
 
-  function handleSimulateGame() {
-    setLatestResult(simulateGame(userTeam, opponentTeam));
+  function handleSimulateNextFixture() {
+    if (!nextFixture) return;
+
+    setResults((currentResults) => {
+      if (hasResultForFixture(nextFixture, currentResults)) return currentResults;
+
+      const homeTeam = getTeam(nextFixture.homeTeamId);
+      const awayTeam = getTeam(nextFixture.awayTeamId);
+
+      return [...currentResults, simulateGame(homeTeam, awayTeam)];
+    });
+  }
+
+  function handleSimulateOpeningRound() {
+    setResults((currentResults) => {
+      const newResults = openingRoundFixtures
+        .filter((fixture) => !hasResultForFixture(fixture, currentResults))
+        .map((fixture) => simulateGame(getTeam(fixture.homeTeamId), getTeam(fixture.awayTeamId)));
+
+      return [...currentResults, ...newResults];
+    });
   }
 
   return (
@@ -70,33 +98,43 @@ export function App() {
         <section className="dashboard-grid">
           <article className="panel next-game-panel">
             <p className="eyebrow">Next Fixture</p>
-            <div className="matchup-row">
-              <TeamMini name={userTeam.shortName} colour={userTeam.primaryColor} />
-              <span className="versus">VS</span>
-              <TeamMini name={opponentTeam.shortName} colour={opponentTeam.primaryColor} />
-            </div>
-            <h3>{userTeam.name} vs {opponentTeam.name}</h3>
-            <p className="muted">Home opener · BSBL Regular Season Game 1</p>
-            <button className="primary-action" onClick={handleSimulateGame}>Simulate Game</button>
+            {nextFixture && nextHomeTeam && nextAwayTeam ? (
+              <>
+                <div className="matchup-row">
+                  <TeamMini name={nextHomeTeam.shortName} colour={nextHomeTeam.primaryColor} />
+                  <span className="versus">VS</span>
+                  <TeamMini name={nextAwayTeam.shortName} colour={nextAwayTeam.primaryColor} />
+                </div>
+                <h3>{nextHomeTeam.name} vs {nextAwayTeam.name}</h3>
+                <p className="muted">Round {nextFixture.round} · BSBL Regular Season</p>
+                <button className="primary-action" onClick={handleSimulateNextFixture}>Simulate Next Fixture</button>
+                <button className="secondary-action" onClick={handleSimulateOpeningRound}>Simulate Opening Round</button>
+              </>
+            ) : (
+              <>
+                <h3>Opening round complete</h3>
+                <p className="muted">All six Round 1 games have been simulated.</p>
+              </>
+            )}
           </article>
 
           <article className="panel stat-panel">
             <p className="eyebrow">Current Record</p>
-            <strong>{currentRecord}</strong>
-            <span className="muted">{latestResult ? 'After Game 1' : 'Season has not started'}</span>
+            <strong>{userStanding?.wins ?? 0}-{userStanding?.losses ?? 0}</strong>
+            <span className="muted">{userStanding?.played ? `After ${userStanding.played} game` : 'Season has not started'}</span>
           </article>
 
           <article className="panel stat-panel">
             <p className="eyebrow">League Position</p>
-            <strong>{latestResult ? (userWonLatestGame ? '1st' : '12th') : '—'}</strong>
-            <span className="muted">{latestResult ? 'Early-season estimate' : 'Awaiting first game'}</span>
+            <strong>{getOrdinalPosition(standings.findIndex((standing) => standing.teamId === userTeam.id) + 1)}</strong>
+            <span className="muted">{results.length ? 'Live standings' : 'Awaiting first game'}</span>
           </article>
 
           <article className="panel stat-panel">
             <p className="eyebrow">Board Confidence</p>
-            <strong>{latestResult ? (userWonLatestGame ? '76%' : '68%') : '72%'}</strong>
-            <span className={latestResult && !userWonLatestGame ? 'warning' : 'positive'}>
-              {latestResult ? (userWonLatestGame ? 'Rising' : 'Watching closely') : 'Stable'}
+            <strong>{userGameResult ? (userWonLatestGame ? '76%' : '68%') : '72%'}</strong>
+            <span className={userGameResult && !userWonLatestGame ? 'warning' : 'positive'}>
+              {userGameResult ? (userWonLatestGame ? 'Rising' : 'Watching closely') : 'Stable'}
             </span>
           </article>
 
@@ -105,14 +143,14 @@ export function App() {
               <div className="panel-header">
                 <div>
                   <p className="eyebrow">Latest Result</p>
-                  <h3>{userWonLatestGame ? 'Opening night win' : 'Opening night defeat'}</h3>
+                  <h3>{getTeam(latestResult.winnerTeamId).name} win</h3>
                 </div>
                 <span className="chip">Final</span>
               </div>
               <div className="scoreboard-row">
-                <ScoreBlock team={userTeam.shortName} score={latestResult.homeScore} colour={userTeam.primaryColor} />
+                <ScoreBlock team={getTeam(latestResult.homeTeamId).shortName} score={latestResult.homeScore} colour={getTeam(latestResult.homeTeamId).primaryColor} />
                 <span className="versus">—</span>
-                <ScoreBlock team={opponentTeam.shortName} score={latestResult.awayScore} colour={opponentTeam.primaryColor} />
+                <ScoreBlock team={getTeam(latestResult.awayTeamId).shortName} score={latestResult.awayScore} colour={getTeam(latestResult.awayTeamId).primaryColor} />
               </div>
               <p className="muted">{latestResult.summary}</p>
             </article>
@@ -152,18 +190,19 @@ export function App() {
           <article className="panel wide-panel league-panel">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">League Snapshot</p>
-                <h3>BSBL Teams</h3>
+                <p className="eyebrow">League Table</p>
+                <h3>BSBL Standings</h3>
               </div>
-              <span className="chip">12 planned · 12 seeded</span>
+              <span className="chip">{results.length}/6 games played</span>
             </div>
             <div className="league-list">
-              {teams.map((team) => (
-                <div className="league-row" key={team.id}>
-                  <span className="team-dot" style={{ background: team.primaryColor }} />
-                  <span>{team.name}</span>
-                  <span className="muted">{team.nation}</span>
-                  <strong>{getDisplayRecord(team.id, latestResult)}</strong>
+              {standings.map((standing, index) => (
+                <div className="league-row" key={standing.teamId}>
+                  <span className="standings-rank">{index + 1}</span>
+                  <span className="team-dot" style={{ background: standing.primaryColor }} />
+                  <span>{standing.teamName}</span>
+                  <span className="muted">{standing.wins}-{standing.losses}</span>
+                  <strong>{standing.pointDifference > 0 ? `+${standing.pointDifference}` : standing.pointDifference}</strong>
                 </div>
               ))}
             </div>
@@ -202,10 +241,34 @@ function ScoreBlock({ team, score, colour }: ScoreBlockProps) {
   );
 }
 
-function getDisplayRecord(teamId: string, latestResult: SimulatedGameResult | null) {
-  if (!latestResult || (teamId !== latestResult.homeTeamId && teamId !== latestResult.awayTeamId)) {
-    return '0-0';
+function getTeam(teamId: string): Team {
+  const team = teams.find((candidate) => candidate.id === teamId);
+
+  if (!team) {
+    throw new Error(`Team not found: ${teamId}`);
   }
 
-  return latestResult.winnerTeamId === teamId ? '1-0' : '0-1';
+  return team;
+}
+
+function hasResultForFixture(fixture: Fixture, results: SimulatedGameResult[]) {
+  return results.some((result) => isResultForFixture(fixture, result));
+}
+
+function isResultForFixture(fixture: Fixture, result: SimulatedGameResult) {
+  return result.homeTeamId === fixture.homeTeamId && result.awayTeamId === fixture.awayTeamId;
+}
+
+function getOrdinalPosition(position: number) {
+  if (position <= 0) return '—';
+
+  const suffix = position % 10 === 1 && position !== 11
+    ? 'st'
+    : position % 10 === 2 && position !== 12
+      ? 'nd'
+      : position % 10 === 3 && position !== 13
+        ? 'rd'
+        : 'th';
+
+  return `${position}${suffix}`;
 }

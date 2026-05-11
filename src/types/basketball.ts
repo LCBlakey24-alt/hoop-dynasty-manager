@@ -45,3 +45,25 @@ export type Team = {
   };
   roster: Player[];
 };
+
+export type Fixture = {
+  id: string;
+  round: number;
+  homeTeamId: string;
+  awayTeamId: string;
+};
+
+export type Standing = {
+  teamId: string;
+  teamName: string;
+  shortName: string;
+  nation: Nation;
+  primaryColor: string;
+  played: number;
+  wins: number;
+  losses: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  pointDifference: number;
+  winPercentage: number;
+};
