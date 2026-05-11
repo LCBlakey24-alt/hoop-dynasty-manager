@@ -395,6 +395,22 @@ button:disabled {
   font-weight: 800;
 }
 
+.tactics-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+}
+
+.tactics-summary-row span {
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  padding: 0.35rem 0.55rem;
+  color: #fed7aa;
+  background: rgba(249, 115, 22, 0.1);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
 .roster-screen,
 .tactics-screen {
   display: grid;
