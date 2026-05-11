@@ -1,4 +1,5 @@
 import { defaultTactics, type TacticalSettings } from './tactics';
+import { calculateWinProbability } from './winProbability';
 import type { Player, Team } from '../types/basketball';
 
 export type PlayerBoxScore = {
@@ -17,6 +18,7 @@ export type SimulatedGameResult = {
   homeScore: number;
   awayScore: number;
   winnerTeamId: string;
+  matchupLabel: string;
   topPerformers: PlayerBoxScore[];
   summary: string;
 };
@@ -31,20 +33,24 @@ export function simulateGame(homeTeam: Team, awayTeam: Team, options: SimulateGa
   const awayTactics = options.awayTactics ?? defaultTactics;
   const homeModifier = getTacticalModifier(homeTactics);
   const awayModifier = getTacticalModifier(awayTactics);
+  const winProbability = calculateWinProbability(homeTeam, awayTeam, { homeTactics, awayTactics });
+  const homeWins = Math.random() <= winProbability.homeWinProbability;
+  const winnerTeamId = homeWins ? homeTeam.id : awayTeam.id;
   const homeStrength = calculateTeamStrength(homeTeam) + 3 + homeModifier.strengthBonus;
   const awayStrength = calculateTeamStrength(awayTeam) + awayModifier.strengthBonus;
+  const scores = createProbabilityAwareScoreline({
+    awayModifier,
+    awayStrength,
+    awayTeam,
+    homeModifier,
+    homeStrength,
+    homeTeam,
+    homeWins,
+  });
 
-  const homeScore = createScore(homeStrength, awayStrength, homeTeam.playStyle, homeModifier);
-  let awayScore = createScore(awayStrength, homeStrength, awayTeam.playStyle, awayModifier);
-
-  if (homeScore === awayScore) {
-    awayScore += Math.random() > 0.5 ? 1 : -1;
-  }
-
-  const winnerTeamId = homeScore > awayScore ? homeTeam.id : awayTeam.id;
   const topPerformers = [
-    ...createTeamBoxScore(homeTeam, homeScore, homeModifier, homeTactics),
-    ...createTeamBoxScore(awayTeam, awayScore, awayModifier, awayTactics),
+    ...createTeamBoxScore(homeTeam, scores.homeScore, homeModifier, homeTactics),
+    ...createTeamBoxScore(awayTeam, scores.awayScore, awayModifier, awayTactics),
   ]
     .sort((a, b) => b.points + b.rebounds + b.assists - (a.points + a.rebounds + a.assists))
     .slice(0, 5);
@@ -52,11 +58,12 @@ export function simulateGame(homeTeam: Team, awayTeam: Team, options: SimulateGa
   return {
     homeTeamId: homeTeam.id,
     awayTeamId: awayTeam.id,
-    homeScore,
-    awayScore,
+    homeScore: scores.homeScore,
+    awayScore: scores.awayScore,
     winnerTeamId,
+    matchupLabel: winProbability.matchupLabel,
     topPerformers,
-    summary: createSummary(homeTeam, awayTeam, homeScore, awayScore, homeTactics),
+    summary: createSummary(homeTeam, awayTeam, scores.homeScore, scores.awayScore, homeTactics, winProbability.matchupLabel),
   };
 }
 
@@ -147,6 +154,39 @@ function calculateTeamStrength(team: Team) {
   return rosterAverage * 0.7 + moraleAverage * 0.15 + formAverage * 0.15 + team.reputation * 0.08;
 }
 
+type ScorelineInput = {
+  awayModifier: TacticalModifier;
+  awayStrength: number;
+  awayTeam: Team;
+  homeModifier: TacticalModifier;
+  homeStrength: number;
+  homeTeam: Team;
+  homeWins: boolean;
+};
+
+function createProbabilityAwareScoreline({
+  awayModifier,
+  awayStrength,
+  awayTeam,
+  homeModifier,
+  homeStrength,
+  homeTeam,
+  homeWins,
+}: ScorelineInput) {
+  let homeScore = createScore(homeStrength, awayStrength, homeTeam.playStyle, homeModifier);
+  let awayScore = createScore(awayStrength, homeStrength, awayTeam.playStyle, awayModifier);
+
+  if (homeWins && homeScore <= awayScore) {
+    homeScore = awayScore + randomBetween(1, 9);
+  }
+
+  if (!homeWins && awayScore <= homeScore) {
+    awayScore = homeScore + randomBetween(1, 9);
+  }
+
+  return { homeScore, awayScore };
+}
+
 function createScore(ownStrength: number, opponentStrength: number, playStyle: string, modifier: TacticalModifier) {
   const styleBonus = getPlayStyleScoreModifier(playStyle);
   const strengthGap = (ownStrength - opponentStrength) * 0.9;
@@ -215,11 +255,11 @@ function createAssists(player: Player) {
   return randomBetween(1, 4);
 }
 
-function createSummary(homeTeam: Team, awayTeam: Team, homeScore: number, awayScore: number, homeTactics: TacticalSettings) {
+function createSummary(homeTeam: Team, awayTeam: Team, homeScore: number, awayScore: number, homeTactics: TacticalSettings, matchupLabel: string) {
   const winner = homeScore > awayScore ? homeTeam : awayTeam;
   const loser = homeScore > awayScore ? awayTeam : homeTeam;
   const margin = Math.abs(homeScore - awayScore);
-  const tacticalNote = ` ${homeTeam.shortName} used ${homeTactics.pace.toLowerCase()} pace with ${homeTactics.offensiveFocus.toLowerCase()} offence.`;
+  const tacticalNote = ` Matchup read: ${matchupLabel}. ${homeTeam.shortName} used ${homeTactics.pace.toLowerCase()} pace with ${homeTactics.offensiveFocus.toLowerCase()} offence.`;
 
   if (margin <= 3) {
     return `${winner.name} edged out ${loser.name} in a tense late-game finish.${tacticalNote}`;
