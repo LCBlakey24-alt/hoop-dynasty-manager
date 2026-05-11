@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Activity, BarChart3, CalendarDays, Dumbbell, Shield, Trophy, Users } from 'lucide-react';
+import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, Shield, Trophy, Users } from 'lucide-react';
+import { MatchResultScreen } from './components/MatchResultScreen';
 import { RosterScreen } from './components/RosterScreen';
 import { ScheduleScreen } from './components/ScheduleScreen';
 import { TacticsScreen } from './components/TacticsScreen';
@@ -12,13 +13,14 @@ import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 
-type ActiveView = 'Dashboard' | 'Roster' | 'Tactics' | 'Schedule';
+type ActiveView = 'Dashboard' | 'Roster' | 'Tactics' | 'Schedule' | 'Results';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
   { label: 'Roster', icon: Users, enabled: true },
   { label: 'Tactics', icon: Shield, enabled: true },
   { label: 'Schedule', icon: CalendarDays, enabled: true },
+  { label: 'Results', icon: ClipboardList, enabled: true },
   { label: 'League', icon: Trophy, enabled: false },
   { label: 'Training', icon: Dumbbell, enabled: false },
   { label: 'Analytics', icon: BarChart3, enabled: false },
@@ -161,6 +163,7 @@ export function App() {
             totalRounds={totalRounds}
           />
         )}
+        {activeView === 'Results' && <MatchResultScreen latestResult={latestResult} teams={teams} />}
       </section>
     </main>
   );
