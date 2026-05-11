@@ -12,25 +12,31 @@ Take control of a fictional basketball franchise. Build the roster, manage tacti
 
 The game should feel like a basketball version of a deep sports manager sim, but with a cleaner and more approachable web-game interface.
 
-## Design Pillars
+---
 
-### 1. Fictional First
+# Design Pillars
+
+## 1. Fictional First
 
 The first version uses fictional teams, players, leagues, cities, awards, and history. This avoids licensing issues and allows complete creative control.
 
-### 2. Playable Before Massive
+## 2. Realistic League Inspiration
+
+The league structure should feel inspired by real UK basketball rather than copying football exactly. The top league should feel like a British professional basketball league with franchises/clubs from England, Wales, and Scotland.
+
+## 3. Playable Before Massive
 
 The first version must be small but genuinely playable. The core loop matters more than huge features.
 
-### 3. Data With Drama
+## 4. Data With Drama
 
 Stats should matter, but the game should not feel like a plain spreadsheet. Player morale, storylines, development arcs, rivalries, injuries, and board pressure should make each save feel alive.
 
-### 4. Easy To Start, Hard To Master
+## 5. Easy To Start, Hard To Master
 
 Players should understand the basics quickly: pick team, set lineup, simulate match. Deeper systems like tactics, contracts, scouting, and player development can grow over time.
 
-### 5. Built For Expansion
+## 6. Built For Expansion
 
 The code and design should allow future features such as custom leagues, career mode, online saves, imports, alternate rules, draft systems, European-style leagues, promotion/relegation, and community-made rosters.
 
@@ -111,134 +117,173 @@ Example career fantasy:
 
 ---
 
-# First Playable Target
-
-The first playable version should be deliberately small.
-
-## Version 0.1 Goal
-
-A player can:
-
-1. Open the game
-2. Pick a fictional team
-3. View the team dashboard
-4. View the roster
-5. Set or view a starting five
-6. Simulate the next match
-7. See the final score and box score
-8. See the league table update
-9. Continue through a short season
-10. Reach playoffs and crown a champion
-
-## Version 0.1 Non-Goals
-
-Do not include these yet:
-
-- Real teams or players
-- Online multiplayer
-- 3D match engine
-- Full salary cap
-- Huge scouting system
-- Real-money purchases
-- Mobile app store release
-- Complex transfer AI
-- Deep media engine
-
----
-
-# Fictional League
+# Main League
 
 ## League Name
 
-**British Elite Basketball League**
+**British Super Basketball League**
 
-Short name: **BEBL**
+Short name: **BSBL**
+
+## League Style
+
+The BSBL is the fictional top professional basketball league in the game. It is inspired by real-life British basketball structures rather than English football.
+
+The league should feel like:
+
+- A British top division
+- Franchise/club style rather than strict football pyramid at launch
+- Mostly English teams
+- At least one Welsh team
+- At least one Scottish team
+- Playoff-driven championship format
+- Cup competitions added later
+- Lower national divisions added later
 
 ## Starting League Size
 
-Start with **8 teams**.
+Start with **12 teams**.
 
-This keeps the season manageable and makes the first simulation easier to test.
+This gives enough variety without making the first version too large.
 
-## Teams
+## First Playable Coding Size
 
-### 1. Bristol Breakers
+The first coded prototype may start with fewer teams while the systems are being built, but the official planned starting league is **12 teams**.
 
+---
+
+# BSBL Teams
+
+## 1. Bristol Breakers
+
+- Nation: England
 - City: Bristol
 - Identity: fast, aggressive, exciting
 - Colours: navy, orange, white
 - Style: fast break, attacking guards
 
-### 2. London Lionsgate
+## 2. London Lionsgate
 
+- Nation: England
 - City: London
 - Identity: wealthy, polished, high expectation
 - Colours: purple, gold, black
 - Style: star-led half-court offence
 
-### 3. Manchester Titans
+## 3. Manchester Titans
 
+- Nation: England
 - City: Manchester
 - Identity: physical, disciplined, hard to beat
 - Colours: steel blue, silver, black
 - Style: defence and rebounding
 
-### 4. Birmingham Blaze
+## 4. Birmingham Blaze
 
+- Nation: England
 - City: Birmingham
 - Identity: energetic, streaky, dangerous scorers
 - Colours: red, orange, charcoal
 - Style: three-point shooting and pace
 
-### 5. Cardiff Dragons
+## 5. Sheffield Steel
 
-- City: Cardiff
-- Identity: passionate, tough, home-court energy
-- Colours: red, black, white
-- Style: pressure defence and attacking the paint
-
-### 6. Glasgow Giants
-
-- City: Glasgow
-- Identity: big, physical, intimidating
-- Colours: green, white, dark navy
-- Style: post play, rebounding, rim protection
-
-### 7. Sheffield Steel
-
+- Nation: England
 - City: Sheffield
 - Identity: gritty, efficient, underdog mentality
 - Colours: grey, orange, black
 - Style: balanced team basketball
 
-### 8. Newcastle Knights
+## 6. Newcastle Knights
 
+- Nation: England
 - City: Newcastle
 - Identity: proud, tactical, defensive
 - Colours: midnight blue, silver, white
 - Style: slow pace, strong defence
 
+## 7. Leeds Lightning
+
+- Nation: England
+- City: Leeds
+- Identity: young, fast, athletic
+- Colours: electric blue, white, navy
+- Style: pace, transition scoring, explosive guards
+
+## 8. Nottingham Outlaws
+
+- Nation: England
+- City: Nottingham
+- Identity: scrappy, unpredictable, difficult to prepare for
+- Colours: forest green, black, gold
+- Style: steals, pressure, chaotic offence
+
+## 9. Leicester Foxes
+
+- Nation: England
+- City: Leicester
+- Identity: smart, technical, team-first
+- Colours: royal blue, amber, white
+- Style: passing, spacing, efficient offence
+
+## 10. Brighton Waves
+
+- Nation: England
+- City: Brighton
+- Identity: stylish, modern, outside shooting
+- Colours: teal, coral, white
+- Style: spacing, threes, quick ball movement
+
+## 11. Cardiff Dragons
+
+- Nation: Wales
+- City: Cardiff
+- Identity: passionate, tough, home-court energy
+- Colours: red, black, white
+- Style: pressure defence and attacking the paint
+
+## 12. Glasgow Giants
+
+- Nation: Scotland
+- City: Glasgow
+- Identity: big, physical, intimidating
+- Colours: green, white, dark navy
+- Style: post play, rebounding, rim protection
+
 ---
 
 # Season Structure
 
-## Version 0.1 Season
+## Version 0.1 / Starting BSBL Season
 
-- 8 teams
+- 12 teams
 - Each team plays each other twice
-- 14 regular season games per team
-- Top 4 qualify for playoffs
-- Semi-finals: 1st vs 4th, 2nd vs 3rd
+- 22 regular season games per team
+- Top 8 qualify for playoffs
+- Quarter-finals
+- Semi-finals
 - Final crowns the champion
 
-## Future Season Options
+## First Playoff Format
 
-- Longer seasons
-- Best-of-three playoff series
-- Cup competition
+For the first version, playoffs can be single-game knockout to keep the simulator simple.
+
+Later versions can upgrade to:
+
+- Best-of-3 quarter-finals
+- Best-of-3 semi-finals
+- One-game final at a neutral venue
+
+## Future Competitions
+
+Future versions can add:
+
+- National Cup
+- Mid-season Trophy
 - All-Star event
-- Promotion/relegation
-- Continental competitions
+- British Championship second tier
+- English, Welsh, and Scottish lower divisions
+- European-style competition
 - Custom league settings
 
 ---
@@ -314,6 +359,7 @@ Each team should have:
 
 - ID
 - Name
+- Nation
 - City
 - Short name
 - Logo/badge placeholder
@@ -474,7 +520,7 @@ Purpose:
 Purpose:
 
 - Choose starting team
-- Show team identity, record expectations, play style, difficulty
+- Show team identity, nation, record expectations, play style, and difficulty
 
 ## Dashboard
 
@@ -669,7 +715,7 @@ Once the game loop works:
 A successful 0.1 build means:
 
 - The app runs in browser
-- Fictional teams exist
+- Fictional BSBL teams exist
 - Fictional players exist
 - User can select a team
 - Dashboard displays current team and next fixture

@@ -10,6 +10,7 @@ Completed:
 - README added
 - Design direction added
 - Game design document added
+- Main league direction agreed: British Super Basketball League (BSBL)
 
 ---
 
@@ -35,13 +36,14 @@ Success criteria:
 
 ---
 
-# Phase 2: Fictional Data
+# Phase 2: Fictional BSBL Data
 
-Goal: Add the first fictional league.
+Goal: Add the first fictional British Super Basketball League data.
 
 Tasks:
 
-- Add 8 BEBL teams
+- Add 12 BSBL teams
+- Include English, Welsh, and Scottish teams
 - Add 10 fictional players per team
 - Add player ratings and archetypes
 - Add team tactical identities
@@ -49,10 +51,10 @@ Tasks:
 
 Success criteria:
 
-- User can see teams
+- User can see all BSBL teams
 - User can view a roster
 - Data is strongly typed
-- Bristol Breakers and the other starter teams exist
+- Bristol Breakers, Cardiff Dragons, Glasgow Giants, and the other starter teams exist
 
 ---
 
@@ -109,7 +111,8 @@ Goal: Complete the first satisfying season loop.
 Tasks:
 
 - Detect end of regular season
-- Generate playoff bracket
+- Generate playoff bracket for top 8
+- Simulate quarter-finals
 - Simulate semi-finals
 - Simulate final
 - Crown champion
@@ -119,7 +122,7 @@ Success criteria:
 
 - A champion can be crowned
 - User receives a season result
-- Save feels like a complete mini-season
+- Save feels like a complete BSBL season
 
 ---
 
@@ -171,7 +174,7 @@ Build in this order:
 
 1. Vite/React/Tailwind app scaffold
 2. Design tokens and layout shell
-3. Fictional team/player data
+3. Fictional BSBL team/player data
 4. Dashboard screen
 5. Match simulator
 6. Standings calculator
