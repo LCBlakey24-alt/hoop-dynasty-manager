@@ -12,6 +12,7 @@ Hoop Dynasty Manager should feel like a modern basketball operations command cen
 - Dark navy panels with orange basketball energy
 - Easy to read on desktop and mobile
 - Stylish without becoming distracting
+- Angular and serious rather than soft/mobile-app styled
 
 ## Primary Palette
 
@@ -36,7 +37,7 @@ Hoop Dynasty Manager should feel like a modern basketball operations command cen
 - Stats should sit in compact cards with clear labels.
 - Player/team cards should use badges, ratings, and visual hierarchy.
 - League tables should be clean, readable, and dense enough for sim fans.
-- Avoid over-textured backgrounds. Use subtle gradients and soft borders instead.
+- Avoid over-textured backgrounds. Use subtle gradients and sharp borders instead.
 
 ## Main Navigation
 
@@ -58,7 +59,7 @@ Suggested primary navigation:
 
 Cards should use:
 
-- Rounded corners
+- Sharp/square corners
 - Thin borders
 - Slight inner glow or subtle shadow
 - Clear section titles
@@ -67,10 +68,10 @@ Cards should use:
 
 Example visual behaviour:
 
-- Upcoming match card: large team badges, records, location, and simulate button.
+- Upcoming match card: large angular team badges, records, location, and simulate button.
 - League table card: compact ranking table with user's team highlighted in orange.
-- Player card: player image/avatar, position badge, overall rating, morale, form.
-- Board confidence card: circular or semi-circular percentage meter.
+- Player card/table row: position badge, overall rating, morale, form.
+- Board confidence card: percentage stat card rather than a soft circular widget.
 
 ## Button Style
 
@@ -78,14 +79,15 @@ Primary buttons:
 
 - Orange fill
 - White text
-- Rounded corners
+- Sharp corners
 - Slight hover glow
 
 Secondary buttons:
 
 - Transparent or dark navy fill
-- Slate border
+- Slate/cyan border
 - White/slate text
+- Sharp corners
 
 Danger buttons:
 
@@ -170,4 +172,4 @@ Good for finance/contract/boardroom sections. Black, gold, stone grey, luxury GM
 
 ## Design Rule
 
-The game should never look like a plain spreadsheet. Even when showing lots of data, it should feel like a basketball franchise hub.
+The game should never look like a plain spreadsheet. Even when showing lots of data, it should feel like a basketball franchise hub. The preferred shape language is sharp, angular and dashboard-like rather than rounded and soft.

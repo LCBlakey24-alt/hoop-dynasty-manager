@@ -1,0 +1,46 @@
+/* Sharp-corner visual pass
+   Keeps the Midnight Court palette, but removes the soft rounded UI look. */
+
+.brand-mark,
+.nav-item,
+.soon-pill,
+.hero-card,
+.panel,
+.team-badge,
+.team-mini,
+.primary-action,
+.secondary-action,
+.chip,
+.rating-pill,
+.standings-rank,
+.position-pill,
+.role-pill,
+.player-row,
+.league-row,
+.score-block,
+.roster-row,
+.meter-track,
+.meter-fill {
+  border-radius: 0;
+}
+
+/* Keep tiny dots circular because they are indicators, not boxes. */
+.team-dot {
+  border-radius: 999px;
+}
+
+/* Sharper cards benefit from slightly cleaner borders. */
+.hero-card,
+.panel,
+.player-row,
+.league-row,
+.roster-row {
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+/* Make sharp buttons feel deliberate rather than unfinished. */
+.primary-action,
+.secondary-action,
+.nav-item {
+  letter-spacing: 0.02em;
+}
