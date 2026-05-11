@@ -10,7 +10,7 @@ import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { userTeam, teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
-import { createQuarterFinalMatchups } from './game/playoffs';
+import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
@@ -104,11 +104,9 @@ export function App() {
     });
   }
 
-  function handleSimulateQuarterFinals() {
-    const quarterFinals = createQuarterFinalMatchups(standings);
-
+  function handleSimulatePlayoffMatchups(matchups: PlayoffMatchup[]) {
     setPlayoffResults((currentResults) => {
-      const newResults = quarterFinals
+      const newResults = matchups
         .filter((matchup) => !currentResults.some((result) => result.homeTeamId === matchup.homeSeed.standing.teamId && result.awayTeamId === matchup.awaySeed.standing.teamId))
         .map((matchup) => simulateGame(
           getTeam(matchup.homeSeed.standing.teamId),
@@ -121,6 +119,22 @@ export function App() {
 
       return [...currentResults, ...newResults];
     });
+  }
+
+  function handleSimulateQuarterFinals() {
+    handleSimulatePlayoffMatchups(createQuarterFinalMatchups(standings));
+  }
+
+  function handleSimulateSemiFinals() {
+    handleSimulatePlayoffMatchups(createSemiFinalMatchups(standings, playoffResults));
+  }
+
+  function handleSimulateFinal() {
+    const final = createFinalMatchup(standings, playoffResults);
+
+    if (!final) return;
+
+    handleSimulatePlayoffMatchups([final]);
   }
 
   return (
@@ -211,7 +225,9 @@ export function App() {
         {activeView === 'Playoffs' && (
           <PlayoffsScreen
             gamesPlayed={results.length}
+            onSimulateFinal={handleSimulateFinal}
             onSimulateQuarterFinals={handleSimulateQuarterFinals}
+            onSimulateSemiFinals={handleSimulateSemiFinals}
             playoffResults={playoffResults}
             standings={standings}
             totalGames={seasonFixtures.length}
