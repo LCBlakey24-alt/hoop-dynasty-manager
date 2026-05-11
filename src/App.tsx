@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, Shield, Trophy, Users } from 'lucide-react';
+import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, Medal, Shield, Trophy, Users } from 'lucide-react';
 import { LeagueScreen } from './components/LeagueScreen';
 import { MatchResultScreen } from './components/MatchResultScreen';
+import { PlayoffsScreen } from './components/PlayoffsScreen';
 import { RosterScreen } from './components/RosterScreen';
 import { ScheduleScreen } from './components/ScheduleScreen';
 import { TacticsScreen } from './components/TacticsScreen';
@@ -14,7 +15,7 @@ import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 
-type ActiveView = 'Dashboard' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League';
+type ActiveView = 'Dashboard' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -23,6 +24,7 @@ const navItems = [
   { label: 'Schedule', icon: CalendarDays, enabled: true },
   { label: 'Results', icon: ClipboardList, enabled: true },
   { label: 'League', icon: Trophy, enabled: true },
+  { label: 'Playoffs', icon: Medal, enabled: true },
   { label: 'Training', icon: Dumbbell, enabled: false },
   { label: 'Analytics', icon: BarChart3, enabled: false },
 ] as const;
@@ -178,6 +180,14 @@ export function App() {
         {activeView === 'Results' && <MatchResultScreen latestResult={latestResult} teams={teams} />}
         {activeView === 'League' && (
           <LeagueScreen
+            gamesPlayed={results.length}
+            standings={standings}
+            totalGames={seasonFixtures.length}
+            userTeamId={userTeam.id}
+          />
+        )}
+        {activeView === 'Playoffs' && (
+          <PlayoffsScreen
             gamesPlayed={results.length}
             standings={standings}
             totalGames={seasonFixtures.length}
