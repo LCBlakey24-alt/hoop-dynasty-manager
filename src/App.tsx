@@ -7,6 +7,7 @@ import { userTeam, teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
+import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 
 type ActiveView = 'Dashboard' | 'Roster' | 'Tactics';
@@ -41,6 +42,12 @@ export function App() {
   const userWonLatestGame = userGameResult?.winnerTeamId === userTeam.id;
   const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId) : null;
   const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId) : null;
+  const nextMatchupLabel = nextHomeTeam && nextAwayTeam
+    ? calculateWinProbability(nextHomeTeam, nextAwayTeam, {
+      homeTactics: nextHomeTeam.id === userTeam.id ? tactics : defaultTactics,
+      awayTactics: nextAwayTeam.id === userTeam.id ? tactics : defaultTactics,
+    }).matchupLabel
+    : null;
 
   function handleSimulateNextFixture() {
     if (!nextFixture) return;
@@ -125,6 +132,7 @@ export function App() {
             nextAwayTeam={nextAwayTeam}
             nextFixture={nextFixture}
             nextHomeTeam={nextHomeTeam}
+            nextMatchupLabel={nextMatchupLabel}
             results={results}
             standings={standings}
             tactics={tactics}
@@ -148,6 +156,7 @@ type DashboardViewProps = {
   nextAwayTeam: Team | null;
   nextFixture: Fixture | undefined;
   nextHomeTeam: Team | null;
+  nextMatchupLabel: string | null;
   results: SimulatedGameResult[];
   standings: ReturnType<typeof calculateStandings>;
   tactics: TacticalSettings;
@@ -163,6 +172,7 @@ function DashboardView({
   nextAwayTeam,
   nextFixture,
   nextHomeTeam,
+  nextMatchupLabel,
   results,
   standings,
   tactics,
@@ -184,6 +194,7 @@ function DashboardView({
             <h3>{nextHomeTeam.name} vs {nextAwayTeam.name}</h3>
             <p className="muted">Round {nextFixture.round} · BSBL Regular Season</p>
             <div className="tactics-summary-row">
+              <span>{nextMatchupLabel ?? 'Hidden matchup'}</span>
               <span>{tactics.pace}</span>
               <span>{tactics.offensiveFocus}</span>
               <span>{tactics.defensiveStyle}</span>
@@ -226,7 +237,7 @@ function DashboardView({
               <p className="eyebrow">Latest Result</p>
               <h3>{getTeam(latestResult.winnerTeamId).name} win</h3>
             </div>
-            <span className="chip">Final</span>
+            <span className="chip">{latestResult.matchupLabel}</span>
           </div>
           <div className="scoreboard-row">
             <ScoreBlock team={getTeam(latestResult.homeTeamId).shortName} score={latestResult.homeScore} colour={getTeam(latestResult.homeTeamId).primaryColor} />
