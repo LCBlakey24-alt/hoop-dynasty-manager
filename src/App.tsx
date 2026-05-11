@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Activity, BarChart3, CalendarDays, Dumbbell, Shield, Trophy, Users } from 'lucide-react';
 import { RosterScreen } from './components/RosterScreen';
+import { ScheduleScreen } from './components/ScheduleScreen';
 import { TacticsScreen } from './components/TacticsScreen';
 import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { userTeam, teams } from './data/teams';
@@ -10,13 +11,13 @@ import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 
-type ActiveView = 'Dashboard' | 'Roster' | 'Tactics';
+type ActiveView = 'Dashboard' | 'Roster' | 'Tactics' | 'Schedule';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
   { label: 'Roster', icon: Users, enabled: true },
   { label: 'Tactics', icon: Shield, enabled: true },
-  { label: 'Schedule', icon: CalendarDays, enabled: false },
+  { label: 'Schedule', icon: CalendarDays, enabled: true },
   { label: 'League', icon: Trophy, enabled: false },
   { label: 'Training', icon: Dumbbell, enabled: false },
   { label: 'Analytics', icon: BarChart3, enabled: false },
@@ -133,6 +134,15 @@ export function App() {
 
         {activeView === 'Roster' && <RosterScreen team={userTeam} />}
         {activeView === 'Tactics' && <TacticsScreen team={userTeam} tactics={tactics} onTacticsChange={setTactics} />}
+        {activeView === 'Schedule' && (
+          <ScheduleScreen
+            currentRound={currentRound}
+            fixtures={seasonFixtures}
+            results={results}
+            teams={teams}
+            totalRounds={totalRounds}
+          />
+        )}
       </section>
     </main>
   );
