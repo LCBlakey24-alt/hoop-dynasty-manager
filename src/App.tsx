@@ -89,6 +89,16 @@ export function App() {
     });
   }
 
+  function handleSimulateRestOfSeason() {
+    setResults((currentResults) => {
+      const newResults = seasonFixtures
+        .filter((fixture) => !hasResultForFixture(fixture, currentResults))
+        .map((fixture) => simulateFixture(fixture, tactics));
+
+      return [...currentResults, ...newResults];
+    });
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -138,6 +148,7 @@ export function App() {
             handleResetSeason={handleResetSeason}
             handleSimulateNextFixture={handleSimulateNextFixture}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
+            handleSimulateRestOfSeason={handleSimulateRestOfSeason}
             latestResult={latestResult}
             nextAwayTeam={nextAwayTeam}
             nextFixture={nextFixture}
@@ -183,6 +194,7 @@ type DashboardViewProps = {
   handleResetSeason: () => void;
   handleSimulateNextFixture: () => void;
   handleSimulateCurrentRound: () => void;
+  handleSimulateRestOfSeason: () => void;
   latestResult: SimulatedGameResult | null;
   nextAwayTeam: Team | null;
   nextFixture: Fixture | undefined;
@@ -202,6 +214,7 @@ function DashboardView({
   handleResetSeason,
   handleSimulateNextFixture,
   handleSimulateCurrentRound,
+  handleSimulateRestOfSeason,
   latestResult,
   nextAwayTeam,
   nextFixture,
@@ -236,6 +249,7 @@ function DashboardView({
             </div>
             <button className="primary-action" onClick={handleSimulateNextFixture}>Simulate Next Fixture</button>
             <button className="secondary-action" onClick={handleSimulateCurrentRound}>Simulate Round {currentRound}</button>
+            <button className="secondary-action" onClick={handleSimulateRestOfSeason}>Simulate Rest of Season</button>
           </>
         ) : (
           <>
