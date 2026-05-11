@@ -78,5 +78,5 @@ function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
 }
 
 function isTrainingFocus(value: unknown): value is TrainingFocus {
-  return value === 'Balanced' || value === 'Offensive' || value === 'Defensive' || value === 'Development' || value === 'Recovery';
+  return value === 'Balanced' || value === 'Offense' || value === 'Defense' || value === 'Conditioning';
 }
