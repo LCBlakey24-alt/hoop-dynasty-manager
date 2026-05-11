@@ -43,7 +43,7 @@ export function App() {
       <section className="content-area">
         <header className="hero-card">
           <div>
-            <p className="eyebrow">British Elite Basketball League</p>
+            <p className="eyebrow">British Super Basketball League</p>
             <h2>{userTeam.name}</h2>
             <p className="hero-copy">{userTeam.identity}. Built for {userTeam.playStyle.toLowerCase()} basketball.</p>
           </div>
@@ -61,7 +61,7 @@ export function App() {
               <TeamMini name="LON" colour="#D4AF37" />
             </div>
             <h3>{userTeam.name} vs London Lionsgate</h3>
-            <p className="muted">Home opener · Regular Season Game 1</p>
+            <p className="muted">Home opener · BSBL Regular Season Game 1</p>
             <button className="primary-action">Simulate Game</button>
           </article>
 
@@ -108,9 +108,9 @@ export function App() {
             <div className="panel-header">
               <div>
                 <p className="eyebrow">League Snapshot</p>
-                <h3>BEBL Teams</h3>
+                <h3>BSBL Teams</h3>
               </div>
-              <span className="chip">8 planned · 2 seeded</span>
+              <span className="chip">12 planned · 2 seeded</span>
             </div>
             <div className="league-list">
               {teams.map((team) => (
