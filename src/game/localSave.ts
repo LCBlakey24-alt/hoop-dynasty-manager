@@ -2,9 +2,11 @@ import { defaultTactics, type TacticalSettings } from './tactics';
 import type { SimulatedGameResult } from './simulateGame';
 
 const SAVE_KEY = 'hoop-dynasty-manager-save-v1';
+const SAVE_VERSION = 2;
 const DEFAULT_TEAM_ID = 'bristol-breakers';
 
 export type LocalSeasonSave = {
+  version: number;
   playoffResults: SimulatedGameResult[];
   results: SimulatedGameResult[];
   selectedTeamId: string;
@@ -19,18 +21,11 @@ export function loadLocalSeasonSave(): LocalSeasonSave | null {
     if (!rawSave) return null;
 
     const parsedSave = JSON.parse(rawSave) as Partial<LocalSeasonSave>;
+    const migratedSave = migrateSave(parsedSave);
 
-    if (!Array.isArray(parsedSave.results) || !parsedSave.tactics) {
-      return null;
-    }
+    if (!migratedSave) return null;
 
-    return {
-      playoffResults: Array.isArray(parsedSave.playoffResults) ? parsedSave.playoffResults as SimulatedGameResult[] : [],
-      results: parsedSave.results as SimulatedGameResult[],
-      selectedTeamId: parsedSave.selectedTeamId ?? DEFAULT_TEAM_ID,
-      tactics: { ...defaultTactics, ...parsedSave.tactics },
-      savedAt: parsedSave.savedAt ?? new Date().toISOString(),
-    };
+    return migratedSave;
   } catch {
     return null;
   }
@@ -43,6 +38,7 @@ export function saveLocalSeason(
   selectedTeamId: string = DEFAULT_TEAM_ID,
 ) {
   const save: LocalSeasonSave = {
+    version: SAVE_VERSION,
     playoffResults,
     results,
     selectedTeamId,
@@ -50,11 +46,28 @@ export function saveLocalSeason(
     savedAt: new Date().toISOString(),
   };
 
-  window.localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+  try {
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+  } catch {
+    // Ignore quota/private mode write failures; continue in-memory session.
+  }
 
   return save;
 }
 
 export function clearLocalSeasonSave() {
   window.localStorage.removeItem(SAVE_KEY);
+}
+
+function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
+  if (!Array.isArray(save.results) || !save.tactics) return null;
+
+  return {
+    version: typeof save.version === 'number' ? save.version : 1,
+    playoffResults: Array.isArray(save.playoffResults) ? save.playoffResults as SimulatedGameResult[] : [],
+    results: save.results as SimulatedGameResult[],
+    selectedTeamId: save.selectedTeamId ?? DEFAULT_TEAM_ID,
+    tactics: { ...defaultTactics, ...save.tactics },
+    savedAt: save.savedAt ?? new Date().toISOString(),
+  };
 }
