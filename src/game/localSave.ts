@@ -73,5 +73,10 @@ function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
     selectedTeamId: save.selectedTeamId ?? DEFAULT_TEAM_ID,
     tactics: { ...defaultTactics, ...save.tactics },
     savedAt: save.savedAt ?? new Date().toISOString(),
+    trainingFocus: isTrainingFocus(save.trainingFocus) ? save.trainingFocus : 'Balanced',
   };
+}
+
+function isTrainingFocus(value: unknown): value is TrainingFocus {
+  return value === 'Balanced' || value === 'Offensive' || value === 'Defensive' || value === 'Development' || value === 'Recovery';
 }
