@@ -1,22 +1,45 @@
-import { createQuarterFinalMatchups, getPlayoffSeeds } from '../game/playoffs';
+import {
+  createFinalMatchup,
+  createQuarterFinalMatchups,
+  createSemiFinalMatchups,
+  getChampion,
+  getPlayoffSeeds,
+  type PlayoffMatchup,
+} from '../game/playoffs';
 import type { SimulatedGameResult } from '../game/simulateGame';
 import type { Standing } from '../types/basketball';
 
 type PlayoffsScreenProps = {
   gamesPlayed: number;
+  onSimulateFinal: () => void;
   onSimulateQuarterFinals: () => void;
+  onSimulateSemiFinals: () => void;
   playoffResults: SimulatedGameResult[];
   standings: Standing[];
   totalGames: number;
   userTeamId: string;
 };
 
-export function PlayoffsScreen({ gamesPlayed, onSimulateQuarterFinals, playoffResults, standings, totalGames, userTeamId }: PlayoffsScreenProps) {
+export function PlayoffsScreen({
+  gamesPlayed,
+  onSimulateFinal,
+  onSimulateQuarterFinals,
+  onSimulateSemiFinals,
+  playoffResults,
+  standings,
+  totalGames,
+  userTeamId,
+}: PlayoffsScreenProps) {
   const regularSeasonComplete = gamesPlayed >= totalGames;
   const playoffSeeds = getPlayoffSeeds(standings);
   const quarterFinals = createQuarterFinalMatchups(standings);
+  const semiFinals = createSemiFinalMatchups(standings, playoffResults);
+  const final = createFinalMatchup(standings, playoffResults);
+  const champion = getChampion(standings, playoffResults);
   const userQualified = playoffSeeds.some((seed) => seed.standing.teamId === userTeamId);
-  const quarterFinalsComplete = playoffResults.length >= quarterFinals.length;
+  const quarterFinalsComplete = quarterFinals.length > 0 && quarterFinals.every((matchup) => findMatchupResult(matchup, playoffResults));
+  const semiFinalsComplete = semiFinals.length > 0 && semiFinals.every((matchup) => findMatchupResult(matchup, playoffResults));
+  const finalComplete = !!final && !!findMatchupResult(final, playoffResults);
 
   if (!regularSeasonComplete) {
     return (
@@ -51,45 +74,100 @@ export function PlayoffsScreen({ gamesPlayed, onSimulateQuarterFinals, playoffRe
       <div className="screen-heading">
         <div>
           <p className="eyebrow">BSBL Playoffs</p>
-          <h3>Quarter-final bracket</h3>
-          <p className="muted">The top 8 regular season teams have qualified. Simulate the quarter-finals to advance four teams.</p>
+          <h3>{champion ? `${champion.standing.teamName} are champions` : 'Postseason bracket'}</h3>
+          <p className="muted">The top 8 regular season teams have qualified. Simulate each stage to crown the BSBL champion.</p>
         </div>
-        <span className="chip">Regular season complete</span>
+        <span className="chip">{champion ? 'Champion crowned' : 'Regular season complete'}</span>
       </div>
 
       <section className="playoff-summary-grid">
         <SummaryCard label="Qualified" value="8" helper="Teams in playoff bracket" />
-        <SummaryCard label="Format" value="1v8" helper="Seeded knockout bracket" />
         <SummaryCard label="Your Status" value={userQualified ? 'Qualified' : 'Eliminated'} helper="Based on final table" />
-        <SummaryCard label="QF Status" value={quarterFinalsComplete ? 'Complete' : 'Pending'} helper={`${playoffResults.length}/${quarterFinals.length} played`} />
+        <SummaryCard label="Semi-Finals" value={semiFinalsComplete ? 'Complete' : semiFinals.length ? 'Ready' : 'Locked'} helper="Generated after QFs" />
+        <SummaryCard label="Champion" value={champion?.standing.shortName ?? 'TBD'} helper={champion ? champion.standing.teamName : 'Final pending'} />
       </section>
 
       {!quarterFinalsComplete && (
         <button className="primary-action playoff-action" onClick={onSimulateQuarterFinals}>Simulate Quarter-Finals</button>
       )}
 
-      <section className="playoff-grid">
-        {quarterFinals.map((matchup) => {
-          const result = playoffResults.find((candidate) => candidate.homeTeamId === matchup.homeSeed.standing.teamId && candidate.awayTeamId === matchup.awaySeed.standing.teamId);
-          const winnerId = result?.winnerTeamId;
+      {quarterFinalsComplete && !semiFinalsComplete && (
+        <button className="primary-action playoff-action" onClick={onSimulateSemiFinals}>Simulate Semi-Finals</button>
+      )}
 
-          return (
-            <article className="panel playoff-matchup" key={matchup.id}>
-              <div className="panel-header">
-                <div>
-                  <p className="eyebrow">{matchup.round}</p>
-                  <h3>Seed {matchup.homeSeed.seed} vs Seed {matchup.awaySeed.seed}</h3>
-                </div>
-                <span className="chip">{result ? 'Final' : 'Pending'}</span>
-              </div>
-              <SeedTeam resultScore={result?.homeScore} seed={matchup.homeSeed} userTeamId={userTeamId} winnerId={winnerId} />
-              <div className="playoff-versus">VS</div>
-              <SeedTeam resultScore={result?.awayScore} seed={matchup.awaySeed} userTeamId={userTeamId} winnerId={winnerId} />
-            </article>
-          );
-        })}
+      {semiFinalsComplete && final && !finalComplete && (
+        <button className="primary-action playoff-action" onClick={onSimulateFinal}>Simulate Final</button>
+      )}
+
+      {champion && (
+        <article className="panel champion-panel">
+          <p className="eyebrow">BSBL Champion</p>
+          <h3>{champion.standing.teamName}</h3>
+          <p className="muted">Seed {champion.seed} completed the postseason run and lifted the title.</p>
+        </article>
+      )}
+
+      <section className="playoff-stage-grid">
+        <PlayoffStage matchups={quarterFinals} playoffResults={playoffResults} title="Quarter-Finals" userTeamId={userTeamId} />
+        <PlayoffStage matchups={semiFinals} playoffResults={playoffResults} title="Semi-Finals" userTeamId={userTeamId} />
+        <PlayoffStage matchups={final ? [final] : []} playoffResults={playoffResults} title="Final" userTeamId={userTeamId} />
       </section>
     </section>
+  );
+}
+
+type PlayoffStageProps = {
+  matchups: PlayoffMatchup[];
+  playoffResults: SimulatedGameResult[];
+  title: string;
+  userTeamId: string;
+};
+
+function PlayoffStage({ matchups, playoffResults, title, userTeamId }: PlayoffStageProps) {
+  return (
+    <article className="panel playoff-stage-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">Playoff Stage</p>
+          <h3>{title}</h3>
+        </div>
+        <span className="chip">{matchups.length ? `${countCompleted(matchups, playoffResults)}/${matchups.length}` : 'Locked'}</span>
+      </div>
+
+      <div className="playoff-stage-list">
+        {matchups.length ? matchups.map((matchup) => (
+          <PlayoffMatchupCard matchup={matchup} playoffResults={playoffResults} userTeamId={userTeamId} key={matchup.id} />
+        )) : (
+          <p className="muted">This stage unlocks after the previous round is complete.</p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+type PlayoffMatchupCardProps = {
+  matchup: PlayoffMatchup;
+  playoffResults: SimulatedGameResult[];
+  userTeamId: string;
+};
+
+function PlayoffMatchupCard({ matchup, playoffResults, userTeamId }: PlayoffMatchupCardProps) {
+  const result = findMatchupResult(matchup, playoffResults);
+  const winnerId = result?.winnerTeamId;
+
+  return (
+    <div className="playoff-matchup-card">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">{matchup.round}</p>
+          <strong>Seed {matchup.homeSeed.seed} vs Seed {matchup.awaySeed.seed}</strong>
+        </div>
+        <span className="chip">{result ? 'Final' : 'Pending'}</span>
+      </div>
+      <SeedTeam resultScore={result?.homeScore} seed={matchup.homeSeed} userTeamId={userTeamId} winnerId={winnerId} />
+      <div className="playoff-versus">VS</div>
+      <SeedTeam resultScore={result?.awayScore} seed={matchup.awaySeed} userTeamId={userTeamId} winnerId={winnerId} />
+    </div>
   );
 }
 
@@ -146,4 +224,12 @@ function SeedTeam({ resultScore, seed, userTeamId, winnerId }: SeedTeamProps) {
       {typeof resultScore === 'number' && <em>{resultScore}</em>}
     </div>
   );
+}
+
+function findMatchupResult(matchup: PlayoffMatchup, playoffResults: SimulatedGameResult[]) {
+  return playoffResults.find((candidate) => candidate.homeTeamId === matchup.homeSeed.standing.teamId && candidate.awayTeamId === matchup.awaySeed.standing.teamId);
+}
+
+function countCompleted(matchups: PlayoffMatchup[], playoffResults: SimulatedGameResult[]) {
+  return matchups.filter((matchup) => findMatchupResult(matchup, playoffResults)).length;
 }
