@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Activity, BarChart3, CalendarDays, Dumbbell, Shield, Trophy, Users } from 'lucide-react';
 import { RosterScreen } from './components/RosterScreen';
 import { ScheduleScreen } from './components/ScheduleScreen';
@@ -6,6 +6,7 @@ import { TacticsScreen } from './components/TacticsScreen';
 import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { userTeam, teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
+import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
@@ -28,10 +29,18 @@ const topPlayers = [...userTeam.roster]
   .sort((a, b) => b.overall - a.overall)
   .slice(0, 3);
 
+const initialSave = typeof window === 'undefined' ? null : loadLocalSeasonSave();
+
 export function App() {
   const [activeView, setActiveView] = useState<ActiveView>('Dashboard');
-  const [results, setResults] = useState<SimulatedGameResult[]>([]);
-  const [tactics, setTactics] = useState<TacticalSettings>(defaultTactics);
+  const [results, setResults] = useState<SimulatedGameResult[]>(initialSave?.results ?? []);
+  const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
+  const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
+
+  useEffect(() => {
+    const save = saveLocalSeason(results, tactics);
+    setSavedAt(save.savedAt);
+  }, [results, tactics]);
 
   const latestResult = results.at(-1) ?? null;
   const standings = calculateStandings(teams, results);
@@ -49,6 +58,13 @@ export function App() {
       awayTactics: nextAwayTeam.id === userTeam.id ? tactics : defaultTactics,
     }).matchupLabel
     : null;
+
+  function handleResetSeason() {
+    clearLocalSeasonSave();
+    setResults([]);
+    setTactics(defaultTactics);
+    setSavedAt(null);
+  }
 
   function handleSimulateNextFixture() {
     if (!nextFixture) return;
@@ -116,6 +132,7 @@ export function App() {
         {activeView === 'Dashboard' && (
           <DashboardView
             currentRound={currentRound}
+            handleResetSeason={handleResetSeason}
             handleSimulateNextFixture={handleSimulateNextFixture}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
             latestResult={latestResult}
@@ -124,6 +141,7 @@ export function App() {
             nextHomeTeam={nextHomeTeam}
             nextMatchupLabel={nextMatchupLabel}
             results={results}
+            savedAt={savedAt}
             standings={standings}
             tactics={tactics}
             userGameResult={userGameResult}
@@ -150,6 +168,7 @@ export function App() {
 
 type DashboardViewProps = {
   currentRound: number;
+  handleResetSeason: () => void;
   handleSimulateNextFixture: () => void;
   handleSimulateCurrentRound: () => void;
   latestResult: SimulatedGameResult | null;
@@ -158,6 +177,7 @@ type DashboardViewProps = {
   nextHomeTeam: Team | null;
   nextMatchupLabel: string | null;
   results: SimulatedGameResult[];
+  savedAt: string | null;
   standings: ReturnType<typeof calculateStandings>;
   tactics: TacticalSettings;
   userGameResult: SimulatedGameResult | null;
@@ -167,6 +187,7 @@ type DashboardViewProps = {
 
 function DashboardView({
   currentRound,
+  handleResetSeason,
   handleSimulateNextFixture,
   handleSimulateCurrentRound,
   latestResult,
@@ -175,6 +196,7 @@ function DashboardView({
   nextHomeTeam,
   nextMatchupLabel,
   results,
+  savedAt,
   standings,
   tactics,
   userGameResult,
@@ -229,6 +251,20 @@ function DashboardView({
         <span className={userGameResult && !userWonLatestGame ? 'warning' : 'positive'}>
           {userGameResult ? (userWonLatestGame ? 'Rising' : 'Watching closely') : 'Stable'}
         </span>
+      </article>
+
+      <article className="panel wide-panel save-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Local Save</p>
+            <h3>Browser season save</h3>
+          </div>
+          <span className="chip">Auto-save</span>
+        </div>
+        <p className="muted">
+          {savedAt ? `Last saved ${new Date(savedAt).toLocaleString()}` : 'No saved season yet.'}
+        </p>
+        <button className="secondary-action danger-action" onClick={handleResetSeason}>Reset Local Season</button>
       </article>
 
       {latestResult && (
