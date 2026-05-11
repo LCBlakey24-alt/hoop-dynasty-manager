@@ -1,17 +1,23 @@
-import type { Player, Team } from '../types/basketball';
+import type { Player, PlayerRole, Team } from '../types/basketball';
 
 type RosterScreenProps = {
   team: Team;
 };
 
-const starterPositions = ['PG', 'SG', 'SF', 'PF', 'C'];
+const roleOrder: Record<PlayerRole, number> = {
+  Starter: 1,
+  Rotation: 2,
+  Depth: 3,
+  Prospect: 4,
+};
 
 export function RosterScreen({ team }: RosterScreenProps) {
-  const sortedRoster = [...team.roster].sort((a, b) => starterPositions.indexOf(a.position) - starterPositions.indexOf(b.position));
+  const sortedRoster = [...team.roster].sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || b.overall - a.overall);
   const averageOverall = Math.round(average(team.roster.map((player) => player.overall)));
   const averagePotential = Math.round(average(team.roster.map((player) => player.potential)));
   const bestProspect = [...team.roster].sort((a, b) => b.potential - a.potential)[0];
   const squadLeader = [...team.roster].sort((a, b) => b.overall - a.overall)[0];
+  const starters = team.roster.filter((player) => player.role === 'Starter').length;
 
   return (
     <section className="roster-screen">
@@ -19,9 +25,9 @@ export function RosterScreen({ team }: RosterScreenProps) {
         <div>
           <p className="eyebrow">Roster Management</p>
           <h3>{team.name} squad</h3>
-          <p className="muted">Review your starting five, player roles, current ability, future ceiling and morale.</p>
+          <p className="muted">Review your starters, bench rotation, depth pieces, prospects and squad morale.</p>
         </div>
-        <span className="chip">{team.roster.length} players seeded</span>
+        <span className="chip">{team.roster.length} players · {starters} starters</span>
       </div>
 
       <section className="roster-summary-grid">
@@ -34,7 +40,7 @@ export function RosterScreen({ team }: RosterScreenProps) {
       <article className="panel roster-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Starting Five</p>
+            <p className="eyebrow">Full Squad</p>
             <h3>Current Rotation</h3>
           </div>
           <span className="chip">{team.playStyle}</span>
@@ -90,7 +96,7 @@ function RosterRow({ player }: RosterRowProps) {
       </div>
       <span className="position-pill">{player.position}</span>
       <span>{player.age}</span>
-      <span className="muted">Starter</span>
+      <span className={`role-pill role-${player.role.toLowerCase()}`}>{player.role}</span>
       <strong>{player.overall}</strong>
       <strong>{player.potential}</strong>
       <Meter value={player.morale} />
