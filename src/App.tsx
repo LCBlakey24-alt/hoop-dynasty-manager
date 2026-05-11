@@ -6,6 +6,7 @@ import { openingRoundFixtures } from './data/fixtures';
 import { userTeam, teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
+import { defaultTactics, type TacticalSettings } from './game/tactics';
 import type { Fixture, Team } from './types/basketball';
 
 type ActiveView = 'Dashboard' | 'Roster' | 'Tactics';
@@ -30,6 +31,7 @@ const topPlayers = [...userTeam.roster]
 export function App() {
   const [activeView, setActiveView] = useState<ActiveView>('Dashboard');
   const [results, setResults] = useState<SimulatedGameResult[]>([]);
+  const [tactics, setTactics] = useState<TacticalSettings>(defaultTactics);
 
   const latestResult = results.at(-1) ?? null;
   const standings = calculateStandings(teams, results);
@@ -48,8 +50,10 @@ export function App() {
 
       const homeTeam = getTeam(nextFixture.homeTeamId);
       const awayTeam = getTeam(nextFixture.awayTeamId);
+      const homeTactics = homeTeam.id === userTeam.id ? tactics : defaultTactics;
+      const awayTactics = awayTeam.id === userTeam.id ? tactics : defaultTactics;
 
-      return [...currentResults, simulateGame(homeTeam, awayTeam)];
+      return [...currentResults, simulateGame(homeTeam, awayTeam, { homeTactics, awayTactics })];
     });
   }
 
@@ -57,7 +61,14 @@ export function App() {
     setResults((currentResults) => {
       const newResults = openingRoundFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
-        .map((fixture) => simulateGame(getTeam(fixture.homeTeamId), getTeam(fixture.awayTeamId)));
+        .map((fixture) => {
+          const homeTeam = getTeam(fixture.homeTeamId);
+          const awayTeam = getTeam(fixture.awayTeamId);
+          const homeTactics = homeTeam.id === userTeam.id ? tactics : defaultTactics;
+          const awayTactics = awayTeam.id === userTeam.id ? tactics : defaultTactics;
+
+          return simulateGame(homeTeam, awayTeam, { homeTactics, awayTactics });
+        });
 
       return [...currentResults, ...newResults];
     });
@@ -116,6 +127,7 @@ export function App() {
             nextHomeTeam={nextHomeTeam}
             results={results}
             standings={standings}
+            tactics={tactics}
             userGameResult={userGameResult}
             userStanding={userStanding}
             userWonLatestGame={userWonLatestGame}
@@ -123,7 +135,7 @@ export function App() {
         )}
 
         {activeView === 'Roster' && <RosterScreen team={userTeam} />}
-        {activeView === 'Tactics' && <TacticsScreen team={userTeam} />}
+        {activeView === 'Tactics' && <TacticsScreen team={userTeam} tactics={tactics} onTacticsChange={setTactics} />}
       </section>
     </main>
   );
@@ -138,6 +150,7 @@ type DashboardViewProps = {
   nextHomeTeam: Team | null;
   results: SimulatedGameResult[];
   standings: ReturnType<typeof calculateStandings>;
+  tactics: TacticalSettings;
   userGameResult: SimulatedGameResult | null;
   userStanding: ReturnType<typeof calculateStandings>[number] | undefined;
   userWonLatestGame: boolean;
@@ -152,6 +165,7 @@ function DashboardView({
   nextHomeTeam,
   results,
   standings,
+  tactics,
   userGameResult,
   userStanding,
   userWonLatestGame,
@@ -169,6 +183,11 @@ function DashboardView({
             </div>
             <h3>{nextHomeTeam.name} vs {nextAwayTeam.name}</h3>
             <p className="muted">Round {nextFixture.round} · BSBL Regular Season</p>
+            <div className="tactics-summary-row">
+              <span>{tactics.pace}</span>
+              <span>{tactics.offensiveFocus}</span>
+              <span>{tactics.defensiveStyle}</span>
+            </div>
             <button className="primary-action" onClick={handleSimulateNextFixture}>Simulate Next Fixture</button>
             <button className="secondary-action" onClick={handleSimulateOpeningRound}>Simulate Opening Round</button>
           </>

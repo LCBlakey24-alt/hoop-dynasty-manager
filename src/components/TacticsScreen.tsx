@@ -1,43 +1,41 @@
+import { tacticOptions, type TacticalSettings } from '../game/tactics';
 import type { Player, Team } from '../types/basketball';
 
 type TacticsScreenProps = {
   team: Team;
+  tactics: TacticalSettings;
+  onTacticsChange: (nextTactics: TacticalSettings) => void;
 };
 
 const tacticalGroups = [
   {
+    key: 'pace',
     label: 'Pace',
-    current: 'Fast',
-    options: ['Slow', 'Balanced', 'Fast'],
     helper: 'Controls how quickly your team looks to attack after winning possession.',
   },
   {
+    key: 'offensiveFocus',
     label: 'Offensive Focus',
-    current: 'Transition',
-    options: ['Inside', 'Balanced', 'Three-Point Heavy', 'Transition'],
     helper: 'Decides where your best scoring chances should come from.',
   },
   {
+    key: 'defensiveStyle',
     label: 'Defensive Style',
-    current: 'Man-to-Man',
-    options: ['Man-to-Man', 'Zone', 'Press'],
     helper: 'Sets the base defensive structure before future match engine modifiers.',
   },
   {
+    key: 'reboundingFocus',
     label: 'Rebounding Focus',
-    current: 'Balanced',
-    options: ['Get Back', 'Balanced', 'Crash Boards'],
     helper: 'Balances transition defence against extra offensive rebound chances.',
   },
   {
+    key: 'usageFocus',
     label: 'Usage Focus',
-    current: 'Balanced',
-    options: ['Balanced', 'Star Player', 'Guards', 'Bigs'],
     helper: 'Controls who receives the most offensive possessions.',
   },
-];
+] as const;
 
-export function TacticsScreen({ team }: TacticsScreenProps) {
+export function TacticsScreen({ team, tactics, onTacticsChange }: TacticsScreenProps) {
   const starters = team.roster.filter((player) => player.role === 'Starter');
   const rotation = team.roster.filter((player) => player.role === 'Rotation');
   const depth = team.roster.filter((player) => player.role === 'Depth' || player.role === 'Prospect');
@@ -50,7 +48,7 @@ export function TacticsScreen({ team }: TacticsScreenProps) {
         <div>
           <p className="eyebrow">Tactical Setup</p>
           <h3>{team.name} game plan</h3>
-          <p className="muted">Review your rotation and choose the tactical identity that will later feed into match simulation.</p>
+          <p className="muted">Review your rotation and choose the tactical identity that now feeds into match simulation.</p>
         </div>
         <span className="chip">{team.playStyle}</span>
       </div>
@@ -98,19 +96,23 @@ export function TacticsScreen({ team }: TacticsScreenProps) {
               <p className="eyebrow">Tactical Controls</p>
               <h3>Match instructions</h3>
             </div>
-            <span className="chip">Prototype</span>
+            <span className="chip">Live modifiers</span>
           </div>
 
           <div className="tactical-control-list">
             {tacticalGroups.map((group) => (
-              <div className="tactical-control" key={group.label}>
+              <div className="tactical-control" key={group.key}>
                 <div>
                   <strong>{group.label}</strong>
                   <span>{group.helper}</span>
                 </div>
                 <div className="option-row">
-                  {group.options.map((option) => (
-                    <button className={option === group.current ? 'option-button active' : 'option-button'} key={option}>
+                  {tacticOptions[group.key].map((option) => (
+                    <button
+                      className={option === tactics[group.key] ? 'option-button active' : 'option-button'}
+                      key={option}
+                      onClick={() => onTacticsChange({ ...tactics, [group.key]: option })}
+                    >
                       {option}
                     </button>
                   ))}
@@ -131,7 +133,7 @@ export function TacticsScreen({ team }: TacticsScreenProps) {
           <div className="assistant-notes">
             <Note title="Primary handler" body={`${leadGuard.name} should control tempo and organise early offence.`} />
             <Note title="Interior anchor" body={`${interiorAnchor?.name ?? 'Your centre'} gives the side its defensive base around the rim.`} />
-            <Note title="Current identity" body={`${team.playStyle} suits the current squad, but deeper tactical impact will be added in the simulator next.`} />
+            <Note title="Current plan" body={`${tactics.pace} pace, ${tactics.offensiveFocus.toLowerCase()} offence, ${tactics.defensiveStyle.toLowerCase()} defence.`} />
           </div>
         </article>
       </section>
