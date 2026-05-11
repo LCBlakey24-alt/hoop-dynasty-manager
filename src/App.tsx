@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, Medal, Shield, Trophy, Users } from 'lucide-react';
+import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, Medal, Shield, Trophy, Users, FileText } from 'lucide-react';
 import { LeagueScreen } from './components/LeagueScreen';
 import { MatchResultScreen } from './components/MatchResultScreen';
 import { PlayoffsScreen } from './components/PlayoffsScreen';
 import { RosterScreen } from './components/RosterScreen';
 import { ScheduleScreen } from './components/ScheduleScreen';
+import { SeasonSummaryScreen } from './components/SeasonSummaryScreen';
 import { TacticsScreen } from './components/TacticsScreen';
 import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { userTeam, teams } from './data/teams';
@@ -16,7 +17,7 @@ import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 
-type ActiveView = 'Dashboard' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs';
+type ActiveView = 'Dashboard' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -26,6 +27,7 @@ const navItems = [
   { label: 'Results', icon: ClipboardList, enabled: true },
   { label: 'League', icon: Trophy, enabled: true },
   { label: 'Playoffs', icon: Medal, enabled: true },
+  { label: 'Summary', icon: FileText, enabled: true },
   { label: 'Training', icon: Dumbbell, enabled: false },
   { label: 'Analytics', icon: BarChart3, enabled: false },
 ] as const;
@@ -228,6 +230,15 @@ export function App() {
             onSimulateFinal={handleSimulateFinal}
             onSimulateQuarterFinals={handleSimulateQuarterFinals}
             onSimulateSemiFinals={handleSimulateSemiFinals}
+            playoffResults={playoffResults}
+            standings={standings}
+            totalGames={seasonFixtures.length}
+            userTeamId={userTeam.id}
+          />
+        )}
+        {activeView === 'Summary' && (
+          <SeasonSummaryScreen
+            gamesPlayed={results.length}
             playoffResults={playoffResults}
             standings={standings}
             totalGames={seasonFixtures.length}
