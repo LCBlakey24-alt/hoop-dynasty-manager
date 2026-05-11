@@ -4,6 +4,7 @@ import type { SimulatedGameResult } from './simulateGame';
 const SAVE_KEY = 'hoop-dynasty-manager-save-v1';
 
 export type LocalSeasonSave = {
+  playoffResults: SimulatedGameResult[];
   results: SimulatedGameResult[];
   tactics: TacticalSettings;
   savedAt: string;
@@ -22,6 +23,7 @@ export function loadLocalSeasonSave(): LocalSeasonSave | null {
     }
 
     return {
+      playoffResults: Array.isArray(parsedSave.playoffResults) ? parsedSave.playoffResults as SimulatedGameResult[] : [],
       results: parsedSave.results as SimulatedGameResult[],
       tactics: { ...defaultTactics, ...parsedSave.tactics },
       savedAt: parsedSave.savedAt ?? new Date().toISOString(),
@@ -31,8 +33,9 @@ export function loadLocalSeasonSave(): LocalSeasonSave | null {
   }
 }
 
-export function saveLocalSeason(results: SimulatedGameResult[], tactics: TacticalSettings) {
+export function saveLocalSeason(results: SimulatedGameResult[], tactics: TacticalSettings, playoffResults: SimulatedGameResult[] = []) {
   const save: LocalSeasonSave = {
+    playoffResults,
     results,
     tactics,
     savedAt: new Date().toISOString(),
