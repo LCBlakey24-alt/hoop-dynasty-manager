@@ -19,6 +19,8 @@ export type SimulatedGameResult = {
   awayScore: number;
   winnerTeamId: string;
   matchupLabel: string;
+  homeBoxScore?: PlayerBoxScore[];
+  awayBoxScore?: PlayerBoxScore[];
   topPerformers: PlayerBoxScore[];
   summary: string;
 };
@@ -48,10 +50,9 @@ export function simulateGame(homeTeam: Team, awayTeam: Team, options: SimulateGa
     homeWins,
   });
 
-  const topPerformers = [
-    ...createTeamBoxScore(homeTeam, scores.homeScore, homeModifier, homeTactics),
-    ...createTeamBoxScore(awayTeam, scores.awayScore, awayModifier, awayTactics),
-  ]
+  const homeBoxScore = createTeamBoxScore(homeTeam, scores.homeScore, homeModifier, homeTactics);
+  const awayBoxScore = createTeamBoxScore(awayTeam, scores.awayScore, awayModifier, awayTactics);
+  const topPerformers = [...homeBoxScore, ...awayBoxScore]
     .sort((a, b) => b.points + b.rebounds + b.assists - (a.points + a.rebounds + a.assists))
     .slice(0, 5);
 
@@ -62,6 +63,8 @@ export function simulateGame(homeTeam: Team, awayTeam: Team, options: SimulateGa
     awayScore: scores.awayScore,
     winnerTeamId,
     matchupLabel: winProbability.matchupLabel,
+    homeBoxScore,
+    awayBoxScore,
     topPerformers,
     summary: createSummary(homeTeam, awayTeam, scores.homeScore, scores.awayScore, homeTactics, winProbability.matchupLabel),
   };

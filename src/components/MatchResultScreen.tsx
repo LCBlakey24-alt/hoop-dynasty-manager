@@ -1,4 +1,4 @@
-import type { SimulatedGameResult } from '../game/simulateGame';
+import type { PlayerBoxScore, SimulatedGameResult } from '../game/simulateGame';
 import type { Team } from '../types/basketball';
 
 type MatchResultScreenProps = {
@@ -32,6 +32,8 @@ export function MatchResultScreen({ latestResult, teams }: MatchResultScreenProp
   const awayTeam = findTeam(latestResult.awayTeamId, teams);
   const winner = findTeam(latestResult.winnerTeamId, teams);
   const sortedPerformers = [...latestResult.topPerformers].sort((a, b) => b.points - a.points);
+  const homeBoxScore = latestResult.homeBoxScore ?? latestResult.topPerformers.filter((player) => player.teamId === homeTeam.id);
+  const awayBoxScore = latestResult.awayBoxScore ?? latestResult.topPerformers.filter((player) => player.teamId === awayTeam.id);
 
   return (
     <section className="match-result-screen">
@@ -67,15 +69,7 @@ export function MatchResultScreen({ latestResult, teams }: MatchResultScreenProp
 
           <div className="box-score-list">
             {sortedPerformers.map((player) => (
-              <div className="box-score-row" key={player.playerId}>
-                <div>
-                  <strong>{player.playerName}</strong>
-                  <span>{player.teamName}</span>
-                </div>
-                <StatBlock label="PTS" value={player.points} />
-                <StatBlock label="REB" value={player.rebounds} />
-                <StatBlock label="AST" value={player.assists} />
-              </div>
+              <BoxScoreRow player={player} key={player.playerId} />
             ))}
           </div>
         </article>
@@ -92,9 +86,14 @@ export function MatchResultScreen({ latestResult, teams }: MatchResultScreenProp
           <div className="assistant-notes">
             <ResultNote title="Matchup read" body={`Pre-game read was: ${latestResult.matchupLabel}.`} />
             <ResultNote title="Winning side" body={`${winner.name} finished stronger and took the result.`} />
-            <ResultNote title="Next improvement" body="Future versions will add quarter scores, tactical impact breakdown and full team box scores." />
+            <ResultNote title="Box score" body="Full player scoring, rebounding and assist totals are now stored for newly simulated games." />
           </div>
         </article>
+      </section>
+
+      <section className="result-grid">
+        <TeamBoxScorePanel boxScore={homeBoxScore} team={homeTeam} />
+        <TeamBoxScorePanel boxScore={awayBoxScore} team={awayTeam} />
       </section>
     </section>
   );
@@ -115,6 +114,58 @@ function ResultTeam({ align = 'left', score, team }: ResultTeamProps) {
         <span>{team.city}</span>
       </div>
       <em>{score}</em>
+    </div>
+  );
+}
+
+type TeamBoxScorePanelProps = {
+  boxScore: PlayerBoxScore[];
+  team: Team;
+};
+
+function TeamBoxScorePanel({ boxScore, team }: TeamBoxScorePanelProps) {
+  const sortedBoxScore = [...boxScore].sort((a, b) => b.points - a.points);
+
+  return (
+    <article className="panel result-detail-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">Team Box Score</p>
+          <h3>{team.shortName} players</h3>
+        </div>
+        <span className="chip">{boxScore.length || 'Legacy'} rows</span>
+      </div>
+
+      <div className="box-score-list full-box-score-list">
+        {sortedBoxScore.length > 0 ? sortedBoxScore.map((player) => (
+          <BoxScoreRow player={player} key={player.playerId} />
+        )) : (
+          <div className="box-score-row">
+            <div>
+              <strong>Legacy result</strong>
+              <span>This saved match was created before full box scores existed.</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+type BoxScoreRowProps = {
+  player: PlayerBoxScore;
+};
+
+function BoxScoreRow({ player }: BoxScoreRowProps) {
+  return (
+    <div className="box-score-row">
+      <div>
+        <strong>{player.playerName}</strong>
+        <span>{player.teamName}</span>
+      </div>
+      <StatBlock label="PTS" value={player.points} />
+      <StatBlock label="REB" value={player.rebounds} />
+      <StatBlock label="AST" value={player.assists} />
     </div>
   );
 }
