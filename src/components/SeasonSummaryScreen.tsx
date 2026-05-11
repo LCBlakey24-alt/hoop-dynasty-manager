@@ -13,12 +13,11 @@ type SeasonSummaryScreenProps = {
 export function SeasonSummaryScreen({ gamesPlayed, playoffResults, standings, totalGames, userTeamId }: SeasonSummaryScreenProps) {
   const champion = getChampion(standings, playoffResults);
   const regularSeasonComplete = gamesPlayed >= totalGames;
-  const seasonComplete = Boolean(champion);
   const userStanding = standings.find((standing) => standing.teamId === userTeamId);
   const userPosition = userStanding ? standings.findIndex((standing) => standing.teamId === userTeamId) + 1 : null;
   const topFour = standings.slice(0, 4);
 
-  if (!seasonComplete) {
+  if (!champion) {
     return (
       <section className="season-summary-screen">
         <div className="screen-heading">
