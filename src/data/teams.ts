@@ -32,7 +32,7 @@ export const teams: Team[] = [
     reputation: 82,
     record: { wins: 0, losses: 0 },
     roster: [
-      { id: 'london-1', name: 'Jalen Crown', age: 28, position: 'PG', archetype: 'Confident Star' as never, overall: 84, potential: 86, morale: 80, form: 78 },
+      { id: 'london-1', name: 'Jalen Crown', age: 28, position: 'PG', archetype: 'Floor General', overall: 84, potential: 86, morale: 80, form: 78 },
       { id: 'london-2', name: 'Elliot King', age: 26, position: 'SG', archetype: 'Sharpshooter', overall: 81, potential: 83, morale: 76, form: 75 },
       { id: 'london-3', name: 'Roman Hale', age: 30, position: 'SF', archetype: 'Veteran Leader', overall: 79, potential: 79, morale: 72, form: 71 },
       { id: 'london-4', name: 'Caleb Stone', age: 24, position: 'PF', archetype: 'Stretch Big', overall: 78, potential: 84, morale: 73, form: 74 },
