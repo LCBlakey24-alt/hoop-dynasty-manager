@@ -535,6 +535,18 @@ button:disabled {
   background: rgba(249, 115, 22, 0.08);
 }
 
+.seed-team.winner {
+  border-color: rgba(34, 197, 94, 0.42);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.seed-team em {
+  color: #fed7aa;
+  font-style: normal;
+  font-weight: 900;
+  margin-left: auto;
+}
+
 .standings-team-cell {
   display: flex;
   gap: 0.65rem;
@@ -917,7 +929,7 @@ button:disabled {
 
 .seed-team {
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto auto 1fr auto;
   gap: 0.65rem;
   align-items: center;
 }

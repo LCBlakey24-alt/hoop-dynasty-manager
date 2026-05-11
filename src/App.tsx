@@ -10,6 +10,7 @@ import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { userTeam, teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
+import { createQuarterFinalMatchups } from './game/playoffs';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
@@ -39,15 +40,16 @@ const initialSave = typeof window === 'undefined' ? null : loadLocalSeasonSave()
 export function App() {
   const [activeView, setActiveView] = useState<ActiveView>('Dashboard');
   const [results, setResults] = useState<SimulatedGameResult[]>(initialSave?.results ?? []);
+  const [playoffResults, setPlayoffResults] = useState<SimulatedGameResult[]>(initialSave?.playoffResults ?? []);
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics);
+    const save = saveLocalSeason(results, tactics, playoffResults);
     setSavedAt(save.savedAt);
-  }, [results, tactics]);
+  }, [results, tactics, playoffResults]);
 
-  const latestResult = results.at(-1) ?? null;
+  const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
   const standings = calculateStandings(teams, results);
   const userStanding = standings.find((standing) => standing.teamId === userTeam.id);
   const nextFixture = seasonFixtures.find((fixture) => !hasResultForFixture(fixture, results));
@@ -67,6 +69,7 @@ export function App() {
   function handleResetSeason() {
     clearLocalSeasonSave();
     setResults([]);
+    setPlayoffResults([]);
     setTactics(defaultTactics);
     setSavedAt(null);
   }
@@ -96,6 +99,25 @@ export function App() {
       const newResults = seasonFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
         .map((fixture) => simulateFixture(fixture, tactics));
+
+      return [...currentResults, ...newResults];
+    });
+  }
+
+  function handleSimulateQuarterFinals() {
+    const quarterFinals = createQuarterFinalMatchups(standings);
+
+    setPlayoffResults((currentResults) => {
+      const newResults = quarterFinals
+        .filter((matchup) => !currentResults.some((result) => result.homeTeamId === matchup.homeSeed.standing.teamId && result.awayTeamId === matchup.awaySeed.standing.teamId))
+        .map((matchup) => simulateGame(
+          getTeam(matchup.homeSeed.standing.teamId),
+          getTeam(matchup.awaySeed.standing.teamId),
+          {
+            homeTactics: matchup.homeSeed.standing.teamId === userTeam.id ? tactics : defaultTactics,
+            awayTactics: matchup.awaySeed.standing.teamId === userTeam.id ? tactics : defaultTactics,
+          },
+        ));
 
       return [...currentResults, ...newResults];
     });
@@ -189,6 +211,8 @@ export function App() {
         {activeView === 'Playoffs' && (
           <PlayoffsScreen
             gamesPlayed={results.length}
+            onSimulateQuarterFinals={handleSimulateQuarterFinals}
+            playoffResults={playoffResults}
             standings={standings}
             totalGames={seasonFixtures.length}
             userTeamId={userTeam.id}
