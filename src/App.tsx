@@ -43,7 +43,7 @@ export function App() {
       <section className="content-area">
         <header className="hero-card">
           <div>
-            <p className="eyebrow">British Super Basketball League</p>
+            <p className="eyebrow">British Super Basketball League · {userTeam.nation}</p>
             <h2>{userTeam.name}</h2>
             <p className="hero-copy">{userTeam.identity}. Built for {userTeam.playStyle.toLowerCase()} basketball.</p>
           </div>
@@ -110,13 +110,14 @@ export function App() {
                 <p className="eyebrow">League Snapshot</p>
                 <h3>BSBL Teams</h3>
               </div>
-              <span className="chip">12 planned · 2 seeded</span>
+              <span className="chip">12 planned · 12 seeded</span>
             </div>
             <div className="league-list">
               {teams.map((team) => (
                 <div className="league-row" key={team.id}>
                   <span className="team-dot" style={{ background: team.primaryColor }} />
                   <span>{team.name}</span>
+                  <span className="muted">{team.nation}</span>
                   <strong>{team.record.wins}-{team.record.losses}</strong>
                 </div>
               ))}
