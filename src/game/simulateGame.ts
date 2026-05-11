@@ -207,7 +207,7 @@ function getPlayStyleScoreModifier(playStyle: string) {
     return 8;
   }
 
-  if (lowered.includes('slow') || lowered.includes('defence') || lowered.includes('rim protection')) {
+  if (lowered.includes('slow') || lowered.includes('defence') || lowered.includes('defense') || lowered.includes('rim protection')) {
     return -3;
   }
 
