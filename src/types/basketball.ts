@@ -1,3 +1,5 @@
+export type Nation = 'England' | 'Wales' | 'Scotland';
+
 export type Position = 'PG' | 'SG' | 'SF' | 'PF' | 'C';
 
 export type PlayerArchetype =
@@ -29,6 +31,7 @@ export type Player = {
 export type Team = {
   id: string;
   name: string;
+  nation: Nation;
   city: string;
   shortName: string;
   primaryColor: string;
