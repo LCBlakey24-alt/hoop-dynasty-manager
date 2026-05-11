@@ -8,6 +8,7 @@ import { ScheduleScreen } from './components/ScheduleScreen';
 import { SeasonSummaryScreen } from './components/SeasonSummaryScreen';
 import { TacticsScreen } from './components/TacticsScreen';
 import { TeamSelectScreen } from './components/TeamSelectScreen';
+import { TrainingScreen, type TrainingFocus } from './components/TrainingScreen';
 import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
@@ -18,7 +19,7 @@ import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 
-type ActiveView = 'Dashboard' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary';
+type ActiveView = 'Dashboard' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -30,7 +31,7 @@ const navItems = [
   { label: 'League', icon: Trophy, enabled: true },
   { label: 'Playoffs', icon: Medal, enabled: true },
   { label: 'Summary', icon: FileText, enabled: true },
-  { label: 'Training', icon: Dumbbell, enabled: false },
+  { label: 'Training', icon: Dumbbell, enabled: true },
   { label: 'Analytics', icon: BarChart3, enabled: false },
 ] as const;
 
@@ -45,6 +46,7 @@ export function App() {
   const [selectedTeamId, setSelectedTeamId] = useState(initialSave?.selectedTeamId ?? DEFAULT_TEAM_ID);
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
+  const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
 
   const selectedTeam = getTeam(selectedTeamId);
   const topPlayers = [...selectedTeam.roster]
@@ -52,9 +54,9 @@ export function App() {
     .slice(0, 3);
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId);
+    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus);
     setSavedAt(save.savedAt);
-  }, [results, tactics, playoffResults, selectedTeamId]);
+  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus]);
 
   const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
   const standings = calculateStandings(teams, results);
@@ -80,6 +82,7 @@ export function App() {
     setPlayoffResults([]);
     setTactics(defaultTactics);
     setSavedAt(null);
+    setTrainingFocus('Balanced');
   }
 
   function handleSelectTeam(teamId: string) {
@@ -88,6 +91,7 @@ export function App() {
     setPlayoffResults([]);
     setTactics(defaultTactics);
     setSavedAt(null);
+    setTrainingFocus('Balanced');
     setActiveView('Dashboard');
   }
 
@@ -97,7 +101,7 @@ export function App() {
     setResults((currentResults) => {
       if (hasResultForFixture(nextFixture, currentResults)) return currentResults;
 
-      return [...currentResults, simulateFixture(nextFixture, tactics, selectedTeam.id)];
+      return [...currentResults, simulateFixture(nextFixture, tactics, selectedTeam.id, trainingFocus)];
     });
   }
 
@@ -105,7 +109,7 @@ export function App() {
     setResults((currentResults) => {
       const newResults = currentRoundFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
-        .map((fixture) => simulateFixture(fixture, tactics, selectedTeam.id));
+        .map((fixture) => simulateFixture(fixture, tactics, selectedTeam.id, trainingFocus));
 
       return [...currentResults, ...newResults];
     });
@@ -115,7 +119,7 @@ export function App() {
     setResults((currentResults) => {
       const newResults = seasonFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
-        .map((fixture) => simulateFixture(fixture, tactics, selectedTeam.id));
+        .map((fixture) => simulateFixture(fixture, tactics, selectedTeam.id, trainingFocus));
 
       return [...currentResults, ...newResults];
     });
@@ -234,7 +238,7 @@ export function App() {
             totalRounds={totalRounds}
           />
         )}
-        {activeView === 'Results' && <MatchResultScreen latestResult={latestResult} teams={teams} />}
+        {activeView === 'Results' && <MatchResultScreen latestResult={latestResult} results={results} selectedTeamId={selectedTeam.id} teams={teams} />}
         {activeView === 'League' && (
           <LeagueScreen
             gamesPlayed={results.length}
@@ -255,6 +259,7 @@ export function App() {
             userTeamId={selectedTeam.id}
           />
         )}
+        {activeView === 'Training' && <TrainingScreen team={selectedTeam} trainingFocus={trainingFocus} onTrainingFocusChange={setTrainingFocus} />}
         {activeView === 'Summary' && (
           <SeasonSummaryScreen
             gamesPlayed={results.length}
@@ -480,13 +485,16 @@ function ScoreBlock({ team, score, colour }: ScoreBlockProps) {
   );
 }
 
-function simulateFixture(fixture: Fixture, tactics: TacticalSettings, selectedTeamId: string) {
+function simulateFixture(fixture: Fixture, tactics: TacticalSettings, selectedTeamId: string, trainingFocus: TrainingFocus) {
   const homeTeam = getTeam(fixture.homeTeamId);
   const awayTeam = getTeam(fixture.awayTeamId);
   const homeTactics = homeTeam.id === selectedTeamId ? tactics : defaultTactics;
   const awayTactics = awayTeam.id === selectedTeamId ? tactics : defaultTactics;
 
-  return simulateGame(homeTeam, awayTeam, { homeTactics, awayTactics });
+  const adjustedHome = homeTeam.id === selectedTeamId ? applyTrainingFocus(homeTeam, trainingFocus) : homeTeam;
+  const adjustedAway = awayTeam.id === selectedTeamId ? applyTrainingFocus(awayTeam, trainingFocus) : awayTeam;
+
+  return simulateGame(adjustedHome, adjustedAway, { homeTactics, awayTactics });
 }
 
 function getTeam(teamId: string): Team {

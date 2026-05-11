@@ -1,5 +1,6 @@
 import { defaultTactics, type TacticalSettings } from './tactics';
 import type { SimulatedGameResult } from './simulateGame';
+import type { TrainingFocus } from '../components/TrainingScreen';
 
 const SAVE_KEY = 'hoop-dynasty-manager-save-v1';
 const SAVE_VERSION = 2;
@@ -12,6 +13,7 @@ export type LocalSeasonSave = {
   selectedTeamId: string;
   tactics: TacticalSettings;
   savedAt: string;
+  trainingFocus: TrainingFocus;
 };
 
 export function loadLocalSeasonSave(): LocalSeasonSave | null {
@@ -36,6 +38,7 @@ export function saveLocalSeason(
   tactics: TacticalSettings,
   playoffResults: SimulatedGameResult[] = [],
   selectedTeamId: string = DEFAULT_TEAM_ID,
+  trainingFocus: TrainingFocus = 'Balanced',
 ) {
   const save: LocalSeasonSave = {
     version: SAVE_VERSION,
@@ -44,6 +47,7 @@ export function saveLocalSeason(
     selectedTeamId,
     tactics,
     savedAt: new Date().toISOString(),
+    trainingFocus,
   };
 
   try {
