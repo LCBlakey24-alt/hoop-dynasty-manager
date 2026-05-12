@@ -1,10 +1,11 @@
+import type { TrainingFocus } from '../components/TrainingScreen';
 import { defaultTactics, type TacticalSettings } from './tactics';
 import type { SimulatedGameResult } from './simulateGame';
-import type { TrainingFocus } from '../components/TrainingScreen';
 
 const SAVE_KEY = 'hoop-dynasty-manager-save-v1';
 const SAVE_VERSION = 2;
 const DEFAULT_TEAM_ID = 'bristol-breakers';
+const DEFAULT_TRAINING_FOCUS: TrainingFocus = 'Balanced';
 
 export type LocalSeasonSave = {
   version: number;
