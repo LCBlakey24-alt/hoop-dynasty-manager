@@ -40,6 +40,35 @@ export function RosterScreen({ team }: RosterScreenProps) {
       <article className="panel roster-panel">
         <div className="panel-header">
           <div>
+            <p className="eyebrow">Club History</p>
+            <h3>{team.shortName} legacy</h3>
+          </div>
+          <span className="chip">Founded {team.foundedYear}</span>
+        </div>
+
+        <div className="assistant-notes">
+          <div className="assistant-note">
+            <strong>Championship Banners</strong>
+            <span>{team.championships} title{team.championships === 1 ? '' : 's'} won.</span>
+          </div>
+          <div className="assistant-note">
+            <strong>Franchise Identity</strong>
+            <span>{team.identity}</span>
+          </div>
+          <div className="assistant-note">
+            <strong>Legacy Story</strong>
+            <span>{team.legacyStory}</span>
+          </div>
+          <div className="assistant-note">
+            <strong>Historic Players</strong>
+            <span>{team.historicPlayers.join(' · ')}</span>
+          </div>
+        </div>
+      </article>
+
+      <article className="panel roster-panel">
+        <div className="panel-header">
+          <div>
             <p className="eyebrow">Full Squad</p>
             <h3>Current Rotation</h3>
           </div>

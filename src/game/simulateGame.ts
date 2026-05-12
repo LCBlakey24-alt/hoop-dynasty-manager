@@ -28,19 +28,22 @@ export type SimulatedGameResult = {
 type SimulateGameOptions = {
   homeTactics?: TacticalSettings;
   awayTactics?: TacticalSettings;
+  rng?: () => number;
 };
 
 export function simulateGame(homeTeam: Team, awayTeam: Team, options: SimulateGameOptions = {}): SimulatedGameResult {
   const homeTactics = options.homeTactics ?? defaultTactics;
+  const rng = options.rng ?? Math.random;
   const awayTactics = options.awayTactics ?? defaultTactics;
   const homeModifier = getTacticalModifier(homeTactics);
   const awayModifier = getTacticalModifier(awayTactics);
   const winProbability = calculateWinProbability(homeTeam, awayTeam, { homeTactics, awayTactics });
-  const homeWins = Math.random() <= winProbability.homeWinProbability;
+  const homeWins = rng() <= winProbability.homeWinProbability;
   const winnerTeamId = homeWins ? homeTeam.id : awayTeam.id;
   const homeStrength = calculateTeamStrength(homeTeam) + 3 + homeModifier.strengthBonus;
   const awayStrength = calculateTeamStrength(awayTeam) + awayModifier.strengthBonus;
   const scores = createProbabilityAwareScoreline({
+    rng,
     awayModifier,
     awayStrength,
     awayTeam,
@@ -50,8 +53,8 @@ export function simulateGame(homeTeam: Team, awayTeam: Team, options: SimulateGa
     homeWins,
   });
 
-  const homeBoxScore = createTeamBoxScore(homeTeam, scores.homeScore, homeModifier, homeTactics);
-  const awayBoxScore = createTeamBoxScore(awayTeam, scores.awayScore, awayModifier, awayTactics);
+  const homeBoxScore = createTeamBoxScore(homeTeam, scores.homeScore, homeModifier, homeTactics, rng);
+  const awayBoxScore = createTeamBoxScore(awayTeam, scores.awayScore, awayModifier, awayTactics, rng);
   const topPerformers = [...homeBoxScore, ...awayBoxScore]
     .sort((a, b) => b.points + b.rebounds + b.assists - (a.points + a.rebounds + a.assists))
     .slice(0, 5);
@@ -165,6 +168,7 @@ type ScorelineInput = {
   homeStrength: number;
   homeTeam: Team;
   homeWins: boolean;
+  rng: () => number;
 };
 
 function createProbabilityAwareScoreline({
@@ -175,26 +179,27 @@ function createProbabilityAwareScoreline({
   homeStrength,
   homeTeam,
   homeWins,
+  rng,
 }: ScorelineInput) {
-  let homeScore = createScore(homeStrength, awayStrength, homeTeam.playStyle, homeModifier);
-  let awayScore = createScore(awayStrength, homeStrength, awayTeam.playStyle, awayModifier);
+  let homeScore = createScore(homeStrength, awayStrength, homeTeam.playStyle, homeModifier, rng);
+  let awayScore = createScore(awayStrength, homeStrength, awayTeam.playStyle, awayModifier, rng);
 
   if (homeWins && homeScore <= awayScore) {
-    homeScore = awayScore + randomBetween(1, 9);
+    homeScore = awayScore + randomBetween(1, 9, rng);
   }
 
   if (!homeWins && awayScore <= homeScore) {
-    awayScore = homeScore + randomBetween(1, 9);
+    awayScore = homeScore + randomBetween(1, 9, rng);
   }
 
   return { homeScore, awayScore };
 }
 
-function createScore(ownStrength: number, opponentStrength: number, playStyle: string, modifier: TacticalModifier) {
+function createScore(ownStrength: number, opponentStrength: number, playStyle: string, modifier: TacticalModifier, rng: () => number) {
   const styleBonus = getPlayStyleScoreModifier(playStyle);
   const strengthGap = (ownStrength - opponentStrength) * 0.9;
   const varianceRange = Math.max(3, 9 + modifier.varianceBonus);
-  const variance = randomBetween(-varianceRange, varianceRange + 1);
+  const variance = randomBetween(-varianceRange, varianceRange + 1, rng);
   const score = 84 + styleBonus + modifier.scoreBonus + strengthGap + variance;
 
   return Math.max(62, Math.round(score));
@@ -207,26 +212,26 @@ function getPlayStyleScoreModifier(playStyle: string) {
     return 8;
   }
 
-  if (lowered.includes('slow') || lowered.includes('defence') || lowered.includes('rim protection')) {
+  if (lowered.includes('slow') || lowered.includes('defence') || lowered.includes('defense') || lowered.includes('rim protection')) {
     return -3;
   }
 
   return 2;
 }
 
-function createTeamBoxScore(team: Team, teamScore: number, modifier: TacticalModifier, tactics: TacticalSettings): PlayerBoxScore[] {
+function createTeamBoxScore(team: Team, teamScore: number, modifier: TacticalModifier, tactics: TacticalSettings, rng: () => number): PlayerBoxScore[] {
   const usageWeights = team.roster.map((player) => {
     const starBoost = tactics.usageFocus === 'Star Player' && player.overall >= getTeamBestOverall(team) ? modifier.starUsageBonus : 0;
     const guardBoost = ['PG', 'SG'].includes(player.position) ? modifier.guardUsageBonus : 0;
     const bigBoost = ['PF', 'C'].includes(player.position) ? modifier.bigUsageBonus : 0;
 
-    return player.overall + player.form * 0.25 + starBoost + guardBoost + bigBoost + randomBetween(-8, 8);
+    return player.overall + player.form * 0.25 + starBoost + guardBoost + bigBoost + randomBetween(-8, 8, rng);
   });
   const totalWeight = usageWeights.reduce((total, weight) => total + weight, 0);
 
   return team.roster.map((player, index) => {
     const share = usageWeights[index] / totalWeight;
-    const points = Math.max(2, Math.round(teamScore * share + randomBetween(-4, 6)));
+    const points = Math.max(2, Math.round(teamScore * share + randomBetween(-4, 6, rng)));
 
     return {
       playerId: player.id,
@@ -234,8 +239,8 @@ function createTeamBoxScore(team: Team, teamScore: number, modifier: TacticalMod
       teamId: team.id,
       teamName: team.name,
       points,
-      rebounds: Math.max(0, createRebounds(player) + modifier.reboundBonus),
-      assists: Math.max(0, createAssists(player) + modifier.assistBonus),
+      rebounds: Math.max(0, createRebounds(player, rng) + modifier.reboundBonus),
+      assists: Math.max(0, createAssists(player, rng) + modifier.assistBonus),
     };
   });
 }
@@ -244,18 +249,18 @@ function getTeamBestOverall(team: Team) {
   return Math.max(...team.roster.map((player) => player.overall));
 }
 
-function createRebounds(player: Player) {
-  if (player.position === 'C') return randomBetween(7, 14);
-  if (player.position === 'PF') return randomBetween(6, 12);
-  if (player.position === 'SF') return randomBetween(4, 9);
-  return randomBetween(2, 6);
+function createRebounds(player: Player, rng: () => number) {
+  if (player.position === 'C') return randomBetween(7, 14, rng);
+  if (player.position === 'PF') return randomBetween(6, 12, rng);
+  if (player.position === 'SF') return randomBetween(4, 9, rng);
+  return randomBetween(2, 6, rng);
 }
 
-function createAssists(player: Player) {
-  if (player.position === 'PG') return randomBetween(5, 12);
-  if (player.position === 'SG') return randomBetween(3, 8);
-  if (player.position === 'SF') return randomBetween(2, 6);
-  return randomBetween(1, 4);
+function createAssists(player: Player, rng: () => number) {
+  if (player.position === 'PG') return randomBetween(5, 12, rng);
+  if (player.position === 'SG') return randomBetween(3, 8, rng);
+  if (player.position === 'SF') return randomBetween(2, 6, rng);
+  return randomBetween(1, 4, rng);
 }
 
 function createSummary(homeTeam: Team, awayTeam: Team, homeScore: number, awayScore: number, homeTactics: TacticalSettings, matchupLabel: string) {
@@ -279,6 +284,6 @@ function average(values: number[]) {
   return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
-function randomBetween(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+function randomBetween(min: number, max: number, rng: () => number) {
+  return Math.floor(rng() * (max - min + 1)) + min;
 }
