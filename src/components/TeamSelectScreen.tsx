@@ -1,3 +1,4 @@
+import { getTeamProfile } from '../data/teamProfiles';
 import type { Team } from '../types/basketball';
 
 type TeamSelectScreenProps = {
@@ -13,7 +14,7 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
         <div>
           <p className="eyebrow">New Save Setup</p>
           <h3>Choose your BSBL team</h3>
-          <p className="muted">Every club now includes legacy context, championship history, and iconic players to shape your dynasty story.</p>
+          <p className="muted">Pick a club with its own arena, culture, rivalries and basketball identity.</p>
         </div>
         <span className="chip">12 clubs</span>
       </div>
@@ -21,6 +22,7 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
       <section className="team-select-grid">
         {teams.map((team) => {
           const isSelected = selectedTeamId === team.id;
+          const profile = getTeamProfile(team.id);
 
           return (
             <article className={isSelected ? 'panel team-select-card selected' : 'panel team-select-card'} key={team.id}>
@@ -35,6 +37,15 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
 
               <p className="team-select-copy">{team.identity}</p>
               <p className="muted">{team.legacyStory}</p>
+
+              {profile && (
+                <div className="team-profile-mini">
+                  <strong>{profile.arena}</strong>
+                  <span>{profile.motto}</span>
+                  <span>{profile.fanCulture}</span>
+                  <span>Rivals: {profile.rivalries.join(' · ')}</span>
+                </div>
+              )}
 
               <div className="team-select-meta">
                 <span>{team.playStyle}</span>
