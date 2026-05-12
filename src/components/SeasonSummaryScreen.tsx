@@ -1,6 +1,6 @@
 import { getChampion } from '../game/playoffs';
 import type { SimulatedGameResult } from '../game/simulateGame';
-import type { Standing } from '../types/basketball';
+import type { Standing, Team } from '../types/basketball';
 
 type SeasonSummaryScreenProps = {
   gamesPlayed: number;
@@ -8,14 +8,17 @@ type SeasonSummaryScreenProps = {
   standings: Standing[];
   totalGames: number;
   userTeamId: string;
+  teams: Team[];
 };
 
-export function SeasonSummaryScreen({ gamesPlayed, playoffResults, standings, totalGames, userTeamId }: SeasonSummaryScreenProps) {
+export function SeasonSummaryScreen({ gamesPlayed, playoffResults, standings, totalGames, userTeamId, teams }: SeasonSummaryScreenProps) {
   const champion = getChampion(standings, playoffResults);
   const regularSeasonComplete = gamesPlayed >= totalGames;
   const userStanding = standings.find((standing) => standing.teamId === userTeamId);
   const userPosition = userStanding ? standings.findIndex((standing) => standing.teamId === userTeamId) + 1 : null;
   const topFour = standings.slice(0, 4);
+  const userTeam = teams.find((team) => team.id === userTeamId);
+  const championTeam = teams.find((team) => team.id === champion?.standing.teamId);
 
   if (!champion) {
     return (
@@ -64,6 +67,31 @@ export function SeasonSummaryScreen({ gamesPlayed, playoffResults, standings, to
       </section>
 
       <section className="season-summary-panels">
+
+      <article className="panel season-summary-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Franchise Legacy</p>
+            <h3>Historical context</h3>
+          </div>
+          <span className="chip">Narrative</span>
+        </div>
+        <div className="assistant-notes">
+          <div className="assistant-note">
+            <strong>{userTeam?.name ?? 'Your team'}</strong>
+            <span>{userTeam ? `${userTeam.championships} historical titles since ${userTeam.foundedYear}.` : 'Legacy unavailable.'}</span>
+          </div>
+          <div className="assistant-note">
+            <strong>Season champion context</strong>
+            <span>{championTeam ? `${championTeam.shortName} now stand on ${championTeam.championships} all-time titles (historical record).` : 'Champion data unavailable.'}</span>
+          </div>
+          <div className="assistant-note">
+            <strong>Dynasty angle</strong>
+            <span>{userTeam ? `Club icons: ${userTeam.historicPlayers.join(' · ')}` : 'Build your own legacy.'}</span>
+          </div>
+        </div>
+      </article>
+
         <article className="panel season-summary-panel">
           <div className="panel-header">
             <div>

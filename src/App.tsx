@@ -269,6 +269,7 @@ export function App() {
             standings={standings}
             totalGames={seasonFixtures.length}
             userTeamId={selectedTeam.id}
+            teams={teams}
           />
         )}
       </section>
