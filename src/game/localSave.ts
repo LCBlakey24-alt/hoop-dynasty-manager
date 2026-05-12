@@ -1,6 +1,7 @@
 import type { TrainingFocus } from '../components/TrainingScreen';
 import { defaultTactics, type TacticalSettings } from './tactics';
 import type { SimulatedGameResult } from './simulateGame';
+import type { TrainingFocus } from '../components/TrainingScreen';
 
 const SAVE_KEY = 'hoop-dynasty-manager-save-v1';
 const SAVE_VERSION = 2;
@@ -39,7 +40,7 @@ export function saveLocalSeason(
   tactics: TacticalSettings,
   playoffResults: SimulatedGameResult[] = [],
   selectedTeamId: string = DEFAULT_TEAM_ID,
-  trainingFocus: TrainingFocus = DEFAULT_TRAINING_FOCUS,
+  trainingFocus: TrainingFocus = 'Balanced',
 ) {
   const save: LocalSeasonSave = {
     version: SAVE_VERSION,
@@ -74,7 +75,7 @@ function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
     selectedTeamId: save.selectedTeamId ?? DEFAULT_TEAM_ID,
     tactics: { ...defaultTactics, ...save.tactics },
     savedAt: save.savedAt ?? new Date().toISOString(),
-    trainingFocus: isTrainingFocus(save.trainingFocus) ? save.trainingFocus : DEFAULT_TRAINING_FOCUS,
+    trainingFocus: isTrainingFocus(save.trainingFocus) ? save.trainingFocus : 'Balanced',
   };
 }
 
