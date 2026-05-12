@@ -1,10 +1,11 @@
+import type { TrainingFocus } from '../components/TrainingScreen';
 import { defaultTactics, type TacticalSettings } from './tactics';
 import type { SimulatedGameResult } from './simulateGame';
-import type { TrainingFocus } from '../components/TrainingScreen';
 
 const SAVE_KEY = 'hoop-dynasty-manager-save-v1';
 const SAVE_VERSION = 2;
 const DEFAULT_TEAM_ID = 'bristol-breakers';
+const DEFAULT_TRAINING_FOCUS: TrainingFocus = 'Balanced';
 
 export type LocalSeasonSave = {
   version: number;
@@ -13,7 +14,7 @@ export type LocalSeasonSave = {
   selectedTeamId: string;
   tactics: TacticalSettings;
   savedAt: string;
-  trainingFocus?: TrainingFocus;
+  trainingFocus: TrainingFocus;
 };
 
 export function loadLocalSeasonSave(): LocalSeasonSave | null {
@@ -38,7 +39,7 @@ export function saveLocalSeason(
   tactics: TacticalSettings,
   playoffResults: SimulatedGameResult[] = [],
   selectedTeamId: string = DEFAULT_TEAM_ID,
-  trainingFocus: TrainingFocus = 'Balanced',
+  trainingFocus: TrainingFocus = DEFAULT_TRAINING_FOCUS,
 ) {
   const save: LocalSeasonSave = {
     version: SAVE_VERSION,
@@ -73,6 +74,10 @@ function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
     selectedTeamId: save.selectedTeamId ?? DEFAULT_TEAM_ID,
     tactics: { ...defaultTactics, ...save.tactics },
     savedAt: save.savedAt ?? new Date().toISOString(),
-    trainingFocus: save.trainingFocus ?? 'Balanced',
+    trainingFocus: isTrainingFocus(save.trainingFocus) ? save.trainingFocus : DEFAULT_TRAINING_FOCUS,
   };
+}
+
+function isTrainingFocus(value: unknown): value is TrainingFocus {
+  return value === 'Balanced' || value === 'Offense' || value === 'Defense' || value === 'Conditioning';
 }
