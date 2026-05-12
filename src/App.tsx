@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Medal, Shield, Trophy, Users } from 'lucide-react';
+import { LandingScreen } from './components/LandingScreen';
 import { LeagueScreen } from './components/LeagueScreen';
 import { MatchResultScreen } from './components/MatchResultScreen';
 import { PlayoffsScreen } from './components/PlayoffsScreen';
@@ -20,7 +21,7 @@ import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 
-type ActiveView = 'Dashboard' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
+type ActiveView = 'Landing' | 'Dashboard' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -41,7 +42,7 @@ const totalRounds = Math.max(...seasonFixtures.map((fixture) => fixture.round));
 const initialSave = typeof window === 'undefined' ? null : loadLocalSeasonSave();
 
 export function App() {
-  const [activeView, setActiveView] = useState<ActiveView>('Dashboard');
+  const [activeView, setActiveView] = useState<ActiveView>('Landing');
   const [results, setResults] = useState<SimulatedGameResult[]>(initialSave?.results ?? []);
   const [playoffResults, setPlayoffResults] = useState<SimulatedGameResult[]>(initialSave?.playoffResults ?? []);
   const [selectedTeamId, setSelectedTeamId] = useState(initialSave?.selectedTeamId ?? DEFAULT_TEAM_ID);
@@ -53,6 +54,7 @@ export function App() {
   const topPlayers = [...selectedTeam.roster]
     .sort((a, b) => b.overall - a.overall)
     .slice(0, 3);
+  const hasSave = Boolean(initialSave) || results.length > 0 || playoffResults.length > 0;
 
   useEffect(() => {
     const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus);
@@ -84,6 +86,16 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+  }
+
+  function handleStartNewFranchise() {
+    clearLocalSeasonSave();
+    setResults([]);
+    setPlayoffResults([]);
+    setTactics(defaultTactics);
+    setSavedAt(null);
+    setTrainingFocus('Balanced');
+    setActiveView('Team Select');
   }
 
   function handleSelectTeam(teamId: string) {
@@ -159,6 +171,17 @@ export function App() {
     handleSimulatePlayoffMatchups([final]);
   }
 
+  if (activeView === 'Landing') {
+    return (
+      <LandingScreen
+        hasSave={hasSave}
+        onContinue={() => setActiveView('Dashboard')}
+        onNewFranchise={handleStartNewFranchise}
+        selectedTeamName={selectedTeam.name}
+      />
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -204,10 +227,11 @@ export function App() {
 
         {activeView === 'Dashboard' && (
           <DashboardView
+            boardConfidence={boardConfidence}
             currentRound={currentRound}
             handleResetSeason={handleResetSeason}
-            handleSimulateNextFixture={handleSimulateNextFixture}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
+            handleSimulateNextFixture={handleSimulateNextFixture}
             handleSimulateRestOfSeason={handleSimulateRestOfSeason}
             latestResult={latestResult}
             nextAwayTeam={nextAwayTeam}
@@ -219,11 +243,10 @@ export function App() {
             selectedTeam={selectedTeam}
             standings={standings}
             tactics={tactics}
+            topPlayers={topPlayers}
             userGameResult={userGameResult}
             userStanding={userStanding}
             userWonLatestGame={userWonLatestGame}
-            boardConfidence={boardConfidence}
-            topPlayers={topPlayers}
           />
         )}
 
@@ -266,9 +289,9 @@ export function App() {
             gamesPlayed={results.length}
             playoffResults={playoffResults}
             standings={standings}
+            teams={teams}
             totalGames={seasonFixtures.length}
             userTeamId={selectedTeam.id}
-            teams={teams}
           />
         )}
       </section>
@@ -276,11 +299,40 @@ export function App() {
   );
 }
 
+function simulateFixture(fixture: Fixture, tactics: TacticalSettings, selectedTeamId: string, trainingFocus: TrainingFocus) {
+  const homeTeam = getTeam(fixture.homeTeamId);
+  const awayTeam = getTeam(fixture.awayTeamId);
+  const homeTactics = homeTeam.id === selectedTeamId ? tactics : defaultTactics;
+  const awayTactics = awayTeam.id === selectedTeamId ? tactics : defaultTactics;
+  const adjustedHome = homeTeam.id === selectedTeamId ? applyTrainingFocus(homeTeam, trainingFocus) : homeTeam;
+  const adjustedAway = awayTeam.id === selectedTeamId ? applyTrainingFocus(awayTeam, trainingFocus) : awayTeam;
+
+  return simulateGame(adjustedHome, adjustedAway, { homeTactics, awayTactics });
+}
+
+function TeamMini({ name, colour }: { name: string; colour: string }) {
+  return (
+    <div className="team-mini" style={{ borderColor: colour }}>
+      <span>{name}</span>
+    </div>
+  );
+}
+
+function ScoreBlock({ team, score, colour }: { team: string; score: number; colour: string }) {
+  return (
+    <div className="score-block" style={{ borderColor: colour }}>
+      <span>{team}</span>
+      <strong>{score}</strong>
+    </div>
+  );
+}
+
 type DashboardViewProps = {
+  boardConfidence: number;
   currentRound: number;
   handleResetSeason: () => void;
-  handleSimulateNextFixture: () => void;
   handleSimulateCurrentRound: () => void;
+  handleSimulateNextFixture: () => void;
   handleSimulateRestOfSeason: () => void;
   latestResult: SimulatedGameResult | null;
   nextAwayTeam: Team | null;
@@ -296,14 +348,14 @@ type DashboardViewProps = {
   userGameResult: SimulatedGameResult | null;
   userStanding: ReturnType<typeof calculateStandings>[number] | undefined;
   userWonLatestGame: boolean;
-  boardConfidence: number;
 };
 
 function DashboardView({
+  boardConfidence,
   currentRound,
   handleResetSeason,
-  handleSimulateNextFixture,
   handleSimulateCurrentRound,
+  handleSimulateNextFixture,
   handleSimulateRestOfSeason,
   latestResult,
   nextAwayTeam,
@@ -319,7 +371,6 @@ function DashboardView({
   userGameResult,
   userStanding,
   userWonLatestGame,
-  boardConfidence,
 }: DashboardViewProps) {
   return (
     <section className="dashboard-grid">
@@ -456,34 +507,6 @@ function DashboardView({
         </div>
       </article>
     </section>
-  );
-}
-
-function simulateFixture(fixture: Fixture, tactics: TacticalSettings, selectedTeamId: string, trainingFocus: TrainingFocus) {
-  const homeTeam = getTeam(fixture.homeTeamId);
-  const awayTeam = getTeam(fixture.awayTeamId);
-  const homeTactics = homeTeam.id === selectedTeamId ? tactics : defaultTactics;
-  const awayTactics = awayTeam.id === selectedTeamId ? tactics : defaultTactics;
-  const adjustedHome = homeTeam.id === selectedTeamId ? applyTrainingFocus(homeTeam, trainingFocus) : homeTeam;
-  const adjustedAway = awayTeam.id === selectedTeamId ? applyTrainingFocus(awayTeam, trainingFocus) : awayTeam;
-
-  return simulateGame(adjustedHome, adjustedAway, { homeTactics, awayTactics });
-}
-
-function TeamMini({ name, colour }: { name: string; colour: string }) {
-  return (
-    <div className="team-mini" style={{ borderColor: colour }}>
-      <span>{name}</span>
-    </div>
-  );
-}
-
-function ScoreBlock({ team, score, colour }: { team: string; score: number; colour: string }) {
-  return (
-    <div className="score-block" style={{ borderColor: colour }}>
-      <span>{team}</span>
-      <strong>{score}</strong>
-    </div>
   );
 }
 
