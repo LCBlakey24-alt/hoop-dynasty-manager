@@ -1,12 +1,24 @@
+import { useMemo, useState } from 'react';
 import type { PlayerBoxScore, SimulatedGameResult } from '../game/simulateGame';
 import type { Team } from '../types/basketball';
 
 type MatchResultScreenProps = {
   latestResult: SimulatedGameResult | null;
+  results: SimulatedGameResult[];
+  selectedTeamId: string;
   teams: Team[];
 };
 
-export function MatchResultScreen({ latestResult, teams }: MatchResultScreenProps) {
+export function MatchResultScreen({ latestResult, results, selectedTeamId, teams }: MatchResultScreenProps) {
+  const [historyFilter, setHistoryFilter] = useState<'All' | 'My Team'>('My Team');
+  const filteredHistory = useMemo(() => {
+    const base = [...results].reverse();
+
+    if (historyFilter === 'All') return base;
+
+    return base.filter((result) => result.homeTeamId === selectedTeamId || result.awayTeamId === selectedTeamId);
+  }, [historyFilter, results, selectedTeamId]);
+
   if (!latestResult) {
     return (
       <section className="match-result-screen">
@@ -95,6 +107,44 @@ export function MatchResultScreen({ latestResult, teams }: MatchResultScreenProp
         <TeamBoxScorePanel boxScore={homeBoxScore} team={homeTeam} />
         <TeamBoxScorePanel boxScore={awayBoxScore} team={awayTeam} />
       </section>
+
+      <article className="panel result-detail-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Results History</p>
+            <h3>Recent games log</h3>
+          </div>
+          <span className="chip">{filteredHistory.length} games</span>
+        </div>
+
+        <div className="option-row" style={{ marginBottom: '1rem' }}>
+          {(['My Team', 'All'] as const).map((option) => (
+            <button
+              className={historyFilter === option ? 'option-button active' : 'option-button'}
+              key={option}
+              onClick={() => setHistoryFilter(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+
+        <div className="box-score-list full-box-score-list">
+          {filteredHistory.slice(0, 20).map((result, index) => {
+            const home = findTeam(result.homeTeamId, teams);
+            const away = findTeam(result.awayTeamId, teams);
+            const winnerTeam = findTeam(result.winnerTeamId, teams);
+            return (
+              <div className="box-score-row" key={`${result.homeTeamId}-${result.awayTeamId}-${index}`}>
+                <div>
+                  <strong>{home.shortName} {result.homeScore} - {result.awayScore} {away.shortName}</strong>
+                  <span>{winnerTeam.name} won · {result.matchupLabel}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </article>
     </section>
   );
 }
