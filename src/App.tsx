@@ -17,6 +17,7 @@ import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
+import { applyTrainingFocus } from './game/trainingEffects';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 

@@ -39,7 +39,7 @@ export function saveLocalSeason(
   tactics: TacticalSettings,
   playoffResults: SimulatedGameResult[] = [],
   selectedTeamId: string = DEFAULT_TEAM_ID,
-  trainingFocus: TrainingFocus = DEFAULT_TRAINING_FOCUS,
+  trainingFocus: TrainingFocus = 'Balanced',
 ) {
   const save: LocalSeasonSave = {
     version: SAVE_VERSION,
