@@ -13,7 +13,7 @@ export type LocalSeasonSave = {
   selectedTeamId: string;
   tactics: TacticalSettings;
   savedAt: string;
-  trainingFocus: TrainingFocus;
+  trainingFocus?: TrainingFocus;
 };
 
 export function loadLocalSeasonSave(): LocalSeasonSave | null {

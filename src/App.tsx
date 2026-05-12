@@ -13,6 +13,7 @@ import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
+import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
@@ -551,22 +552,4 @@ function calculateBoardConfidence({
   const latestGameScore = latestUserGame ? (latestUserGame.winnerTeamId === selectedTeamId ? 4 : -5) : 0;
 
   return Math.max(40, Math.min(96, 68 + rankScore + recordScore + pdScore + latestGameScore));
-}
-
-function applyTrainingFocus(team: Team, trainingFocus: TrainingFocus): Team {
-  const adjust = { form: 0, morale: 0 };
-
-  if (trainingFocus === 'Balanced') { adjust.form = 1; adjust.morale = 1; }
-  if (trainingFocus === 'Offense') { adjust.form = 2; adjust.morale = 0; }
-  if (trainingFocus === 'Defense') { adjust.form = 1; adjust.morale = 0; }
-  if (trainingFocus === 'Conditioning') { adjust.form = 1; adjust.morale = 2; }
-
-  return {
-    ...team,
-    roster: team.roster.map((player) => ({
-      ...player,
-      form: Math.max(40, Math.min(99, player.form + adjust.form)),
-      morale: Math.max(40, Math.min(99, player.morale + adjust.morale)),
-    })),
-  };
 }
