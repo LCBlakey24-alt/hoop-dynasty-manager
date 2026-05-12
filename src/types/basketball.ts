@@ -40,6 +40,10 @@ export type Team = {
   primaryColor: string;
   secondaryColor: string;
   identity: string;
+  foundedYear: number;
+  championships: number;
+  historicPlayers: string[];
+  legacyStory: string;
   playStyle: string;
   reputation: number;
   record: {

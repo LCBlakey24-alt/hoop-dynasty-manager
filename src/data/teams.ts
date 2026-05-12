@@ -2,7 +2,7 @@ import type { Team } from '../types/basketball';
 
 export const teams: Team[] = [
   {
-    id: 'bristol-breakers', name: 'Bristol Breakers', nation: 'England', city: 'Bristol', shortName: 'BRI', primaryColor: '#F97316', secondaryColor: '#0B1020', identity: 'Fast, aggressive, exciting', playStyle: 'Fast Break', reputation: 68, record: { wins: 0, losses: 0 },
+    id: 'bristol-breakers', name: 'Bristol Breakers', nation: 'England', city: 'Bristol', shortName: 'BRI', primaryColor: '#F97316', secondaryColor: '#0B1020', identity: 'Fast, aggressive, exciting', foundedYear: 1978, championships: 2, historicPlayers: ['Malcolm "Jet" Reed', 'Darius Cole'], legacyStory: 'Docklands club rebuilt around pace after a 2004 rebrand.', playStyle: 'Fast Break', reputation: 68, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'bristol-1', name: 'Kai Mercer', age: 24, position: 'PG', role: 'Starter', archetype: 'Floor General', overall: 78, potential: 84, morale: 74, form: 70 },
       { id: 'bristol-2', name: 'Dante Vale', age: 27, position: 'SG', role: 'Starter', archetype: 'Sharpshooter', overall: 76, potential: 79, morale: 68, form: 72 },
@@ -17,7 +17,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'london-lionsgate', name: 'London Lionsgate', nation: 'England', city: 'London', shortName: 'LON', primaryColor: '#D4AF37', secondaryColor: '#4C1D95', identity: 'Wealthy, polished, high expectation', playStyle: 'Star-led Half Court', reputation: 82, record: { wins: 0, losses: 0 },
+    id: 'london-lionsgate', name: 'London Lionsgate', nation: 'England', city: 'London', shortName: 'LON', primaryColor: '#D4AF37', secondaryColor: '#4C1D95', identity: 'Wealthy, polished, high expectation', foundedYear: 1962, championships: 7, historicPlayers: ['Victor St. James', 'Andre Bellamy'], legacyStory: 'League glamour side with multiple eras of star-led contention.', playStyle: 'Star-led Half Court', reputation: 82, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'london-1', name: 'Jalen Crown', age: 28, position: 'PG', role: 'Starter', archetype: 'Floor General', overall: 84, potential: 86, morale: 80, form: 78 },
       { id: 'london-2', name: 'Elliot King', age: 26, position: 'SG', role: 'Starter', archetype: 'Sharpshooter', overall: 81, potential: 83, morale: 76, form: 75 },
@@ -32,7 +32,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'manchester-titans', name: 'Manchester Titans', nation: 'England', city: 'Manchester', shortName: 'MAN', primaryColor: '#60A5FA', secondaryColor: '#334155', identity: 'Physical, disciplined, hard to beat', playStyle: 'Defence and Rebounding', reputation: 77, record: { wins: 0, losses: 0 },
+    id: 'manchester-titans', name: 'Manchester Titans', nation: 'England', city: 'Manchester', shortName: 'MAN', primaryColor: '#60A5FA', secondaryColor: '#334155', identity: 'Physical, disciplined, hard to beat', foundedYear: 1971, championships: 4, historicPlayers: ['Tyrone Kells', 'Ibrahim Holt'], legacyStory: 'Blue-collar powerhouse known for elite interior defense in the 90s.', playStyle: 'Defence and Rebounding', reputation: 77, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'manchester-1', name: 'Marcus Hodge', age: 29, position: 'PG', role: 'Starter', archetype: 'Lockdown Defender', overall: 77, potential: 78, morale: 73, form: 72 },
       { id: 'manchester-2', name: 'Ryan Cole', age: 25, position: 'SG', role: 'Starter', archetype: 'Two-Way Wing', overall: 78, potential: 82, morale: 75, form: 74 },
@@ -47,7 +47,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'birmingham-blaze', name: 'Birmingham Blaze', nation: 'England', city: 'Birmingham', shortName: 'BIR', primaryColor: '#EF4444', secondaryColor: '#F97316', identity: 'Energetic, streaky, dangerous scorers', playStyle: 'Three-Point Heavy', reputation: 72, record: { wins: 0, losses: 0 },
+    id: 'birmingham-blaze', name: 'Birmingham Blaze', nation: 'England', city: 'Birmingham', shortName: 'BIR', primaryColor: '#EF4444', secondaryColor: '#F97316', identity: 'Energetic, streaky, dangerous scorers', foundedYear: 1988, championships: 1, historicPlayers: ['Reggie North', 'Callan Price'], legacyStory: 'Famous for streaky perimeter eras and upset playoff runs.', playStyle: 'Three-Point Heavy', reputation: 72, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'birmingham-1', name: 'Ty Ellis', age: 23, position: 'PG', role: 'Starter', archetype: 'Slasher', overall: 75, potential: 84, morale: 78, form: 76 },
       { id: 'birmingham-2', name: 'Kobe Hart', age: 26, position: 'SG', role: 'Starter', archetype: 'Sharpshooter', overall: 80, potential: 82, morale: 74, form: 79 },
@@ -62,7 +62,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'sheffield-steel', name: 'Sheffield Steel', nation: 'England', city: 'Sheffield', shortName: 'SHE', primaryColor: '#9CA3AF', secondaryColor: '#111827', identity: 'Gritty, efficient, underdog mentality', playStyle: 'Balanced Team Basketball', reputation: 66, record: { wins: 0, losses: 0 },
+    id: 'sheffield-steel', name: 'Sheffield Steel', nation: 'England', city: 'Sheffield', shortName: 'SHE', primaryColor: '#9CA3AF', secondaryColor: '#111827', identity: 'Gritty, efficient, underdog mentality', foundedYear: 1993, championships: 0, historicPlayers: ['Mick Donnelly', 'Pavel Grint'], legacyStory: 'Community-first club that survives on development and discipline.', playStyle: 'Balanced Team Basketball', reputation: 66, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'sheffield-1', name: 'Callum Price', age: 27, position: 'PG', role: 'Starter', archetype: 'Floor General', overall: 74, potential: 77, morale: 74, form: 72 },
       { id: 'sheffield-2', name: 'Ben Walker', age: 25, position: 'SG', role: 'Starter', archetype: 'Sixth Man', overall: 72, potential: 78, morale: 76, form: 70 },
@@ -77,7 +77,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'newcastle-knights', name: 'Newcastle Knights', nation: 'England', city: 'Newcastle', shortName: 'NEW', primaryColor: '#1E3A8A', secondaryColor: '#CBD5E1', identity: 'Proud, tactical, defensive', playStyle: 'Slow Pace Defence', reputation: 70, record: { wins: 0, losses: 0 },
+    id: 'newcastle-knights', name: 'Newcastle Knights', nation: 'England', city: 'Newcastle', shortName: 'NEW', primaryColor: '#1E3A8A', secondaryColor: '#CBD5E1', identity: 'Proud, tactical, defensive', foundedYear: 1980, championships: 3, historicPlayers: ['Darren Pike', 'Hugo Bain'], legacyStory: 'Northern tactical outfit with several defense-first title seasons.', playStyle: 'Slow Pace Defence', reputation: 70, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'newcastle-1', name: 'Finn Gallagher', age: 26, position: 'PG', role: 'Starter', archetype: 'Floor General', overall: 76, potential: 80, morale: 75, form: 72 },
       { id: 'newcastle-2', name: 'Jordan Pierce', age: 29, position: 'SG', role: 'Starter', archetype: 'Lockdown Defender', overall: 74, potential: 75, morale: 73, form: 71 },
@@ -92,7 +92,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'leeds-lightning', name: 'Leeds Lightning', nation: 'England', city: 'Leeds', shortName: 'LEE', primaryColor: '#38BDF8', secondaryColor: '#0F172A', identity: 'Young, fast, athletic', playStyle: 'Transition Scoring', reputation: 64, record: { wins: 0, losses: 0 },
+    id: 'leeds-lightning', name: 'Leeds Lightning', nation: 'England', city: 'Leeds', shortName: 'LEE', primaryColor: '#38BDF8', secondaryColor: '#0F172A', identity: 'Young, fast, athletic', foundedYear: 2001, championships: 0, historicPlayers: ['Eli Barlow', 'Kareem Fox'], legacyStory: 'Modern academy-driven side focused on athletic prospects.', playStyle: 'Transition Scoring', reputation: 64, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'leeds-1', name: 'Zane Brooks', age: 21, position: 'PG', role: 'Starter', archetype: 'Raw Prospect', overall: 71, potential: 87, morale: 80, form: 72 },
       { id: 'leeds-2', name: 'Luca Hill', age: 23, position: 'SG', role: 'Starter', archetype: 'Slasher', overall: 73, potential: 84, morale: 76, form: 73 },
@@ -107,7 +107,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'nottingham-outlaws', name: 'Nottingham Outlaws', nation: 'England', city: 'Nottingham', shortName: 'NOT', primaryColor: '#166534', secondaryColor: '#FBBF24', identity: 'Scrappy, unpredictable, difficult to prepare for', playStyle: 'Pressure and Chaos', reputation: 63, record: { wins: 0, losses: 0 },
+    id: 'nottingham-outlaws', name: 'Nottingham Outlaws', nation: 'England', city: 'Nottingham', shortName: 'NOT', primaryColor: '#166534', secondaryColor: '#FBBF24', identity: 'Scrappy, unpredictable, difficult to prepare for', foundedYear: 1998, championships: 0, historicPlayers: ['Jace Monroe', 'Leon Baird'], legacyStory: 'Chaos-press identity forged by underdog coaches and scrappy guards.', playStyle: 'Pressure and Chaos', reputation: 63, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'nottingham-1', name: 'Riley Archer', age: 25, position: 'PG', role: 'Starter', archetype: 'Slasher', overall: 73, potential: 79, morale: 77, form: 73 },
       { id: 'nottingham-2', name: 'Dylan Knox', age: 28, position: 'SG', role: 'Starter', archetype: 'Sharpshooter', overall: 74, potential: 76, morale: 69, form: 72 },
@@ -122,7 +122,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'leicester-foxes', name: 'Leicester Foxes', nation: 'England', city: 'Leicester', shortName: 'LEI', primaryColor: '#2563EB', secondaryColor: '#F59E0B', identity: 'Smart, technical, team-first', playStyle: 'Passing and Spacing', reputation: 69, record: { wins: 0, losses: 0 },
+    id: 'leicester-foxes', name: 'Leicester Foxes', nation: 'England', city: 'Leicester', shortName: 'LEI', primaryColor: '#2563EB', secondaryColor: '#F59E0B', identity: 'Smart, technical, team-first', foundedYear: 1975, championships: 2, historicPlayers: ['Anwar Siddiq', 'Peter Morrow'], legacyStory: 'Technically sharp club that peaked in passing-heavy systems.', playStyle: 'Passing and Spacing', reputation: 69, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'leicester-1', name: 'Aaron Patel', age: 26, position: 'PG', role: 'Starter', archetype: 'Floor General', overall: 77, potential: 81, morale: 78, form: 75 },
       { id: 'leicester-2', name: 'Max Turner', age: 24, position: 'SG', role: 'Starter', archetype: 'Sharpshooter', overall: 76, potential: 82, morale: 73, form: 76 },
@@ -137,7 +137,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'brighton-waves', name: 'Brighton Waves', nation: 'England', city: 'Brighton', shortName: 'BHA', primaryColor: '#14B8A6', secondaryColor: '#FB7185', identity: 'Stylish, modern, outside shooting', playStyle: 'Spacing and Threes', reputation: 65, record: { wins: 0, losses: 0 },
+    id: 'brighton-waves', name: 'Brighton Waves', nation: 'England', city: 'Brighton', shortName: 'BHA', primaryColor: '#14B8A6', secondaryColor: '#FB7185', identity: 'Stylish, modern, outside shooting', foundedYear: 2005, championships: 0, historicPlayers: ['Rico Swan', 'Milan Grey'], legacyStory: 'Young coastal franchise built on spacing and tempo.', playStyle: 'Spacing and Threes', reputation: 65, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'brighton-1', name: 'Sonny Miles', age: 24, position: 'PG', role: 'Starter', archetype: 'Floor General', overall: 74, potential: 81, morale: 76, form: 74 },
       { id: 'brighton-2', name: 'Aiden Cole', age: 26, position: 'SG', role: 'Starter', archetype: 'Sharpshooter', overall: 79, potential: 81, morale: 74, form: 78 },
@@ -152,7 +152,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'cardiff-dragons', name: 'Cardiff Dragons', nation: 'Wales', city: 'Cardiff', shortName: 'CAR', primaryColor: '#DC2626', secondaryColor: '#111827', identity: 'Passionate, tough, home-court energy', playStyle: 'Paint Pressure Defence', reputation: 71, record: { wins: 0, losses: 0 },
+    id: 'cardiff-dragons', name: 'Cardiff Dragons', nation: 'Wales', city: 'Cardiff', shortName: 'CAR', primaryColor: '#DC2626', secondaryColor: '#111827', identity: 'Passionate, tough, home-court energy', foundedYear: 1969, championships: 3, historicPlayers: ['Owain Hughes', 'Bryn Evans'], legacyStory: 'Historic Welsh side with intimidating home-court nights.', playStyle: 'Paint Pressure Defence', reputation: 71, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'cardiff-1', name: 'Rhys Morgan', age: 27, position: 'PG', role: 'Starter', archetype: 'Lockdown Defender', overall: 75, potential: 78, morale: 81, form: 74 },
       { id: 'cardiff-2', name: 'Iwan Price', age: 25, position: 'SG', role: 'Starter', archetype: 'Slasher', overall: 76, potential: 81, morale: 78, form: 75 },
@@ -167,7 +167,7 @@ export const teams: Team[] = [
     ],
   },
   {
-    id: 'glasgow-giants', name: 'Glasgow Giants', nation: 'Scotland', city: 'Glasgow', shortName: 'GLA', primaryColor: '#16A34A', secondaryColor: '#0F172A', identity: 'Big, physical, intimidating', playStyle: 'Post Play and Rim Protection', reputation: 73, record: { wins: 0, losses: 0 },
+    id: 'glasgow-giants', name: 'Glasgow Giants', nation: 'Scotland', city: 'Glasgow', shortName: 'GLA', primaryColor: '#16A34A', secondaryColor: '#0F172A', identity: 'Big, physical, intimidating', foundedYear: 1965, championships: 5, historicPlayers: ['Ewan Kerr', 'Marcus Boyd'], legacyStory: 'Physical Scottish giant with a legacy of dominant frontcourts.', playStyle: 'Post Play and Rim Protection', reputation: 73, record: { wins: 0, losses: 0 },
     roster: [
       { id: 'glasgow-1', name: 'Callen Fraser', age: 28, position: 'PG', role: 'Starter', archetype: 'Floor General', overall: 75, potential: 77, morale: 76, form: 72 },
       { id: 'glasgow-2', name: 'Euan McKay', age: 26, position: 'SG', role: 'Starter', archetype: 'Two-Way Wing', overall: 76, potential: 80, morale: 73, form: 74 },
