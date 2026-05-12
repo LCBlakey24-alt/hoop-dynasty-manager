@@ -17,7 +17,6 @@ import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
-import { applyTrainingFocus } from './game/trainingEffects';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Team } from './types/basketball';
 
@@ -460,12 +459,18 @@ function DashboardView({
   );
 }
 
-type TeamMiniProps = {
-  name: string;
-  colour: string;
-};
+function simulateFixture(fixture: Fixture, tactics: TacticalSettings, selectedTeamId: string, trainingFocus: TrainingFocus) {
+  const homeTeam = getTeam(fixture.homeTeamId);
+  const awayTeam = getTeam(fixture.awayTeamId);
+  const homeTactics = homeTeam.id === selectedTeamId ? tactics : defaultTactics;
+  const awayTactics = awayTeam.id === selectedTeamId ? tactics : defaultTactics;
+  const adjustedHome = homeTeam.id === selectedTeamId ? applyTrainingFocus(homeTeam, trainingFocus) : homeTeam;
+  const adjustedAway = awayTeam.id === selectedTeamId ? applyTrainingFocus(awayTeam, trainingFocus) : awayTeam;
 
-function TeamMini({ name, colour }: TeamMiniProps) {
+  return simulateGame(adjustedHome, adjustedAway, { homeTactics, awayTactics });
+}
+
+function TeamMini({ name, colour }: { name: string; colour: string }) {
   return (
     <div className="team-mini" style={{ borderColor: colour }}>
       <span>{name}</span>
@@ -473,31 +478,13 @@ function TeamMini({ name, colour }: TeamMiniProps) {
   );
 }
 
-type ScoreBlockProps = {
-  team: string;
-  score: number;
-  colour: string;
-};
-
-function ScoreBlock({ team, score, colour }: ScoreBlockProps) {
+function ScoreBlock({ team, score, colour }: { team: string; score: number; colour: string }) {
   return (
     <div className="score-block" style={{ borderColor: colour }}>
       <span>{team}</span>
       <strong>{score}</strong>
     </div>
   );
-}
-
-function simulateFixture(fixture: Fixture, tactics: TacticalSettings, selectedTeamId: string, trainingFocus: TrainingFocus) {
-  const homeTeam = getTeam(fixture.homeTeamId);
-  const awayTeam = getTeam(fixture.awayTeamId);
-  const homeTactics = homeTeam.id === selectedTeamId ? tactics : defaultTactics;
-  const awayTactics = awayTeam.id === selectedTeamId ? tactics : defaultTactics;
-
-  const adjustedHome = homeTeam.id === selectedTeamId ? applyTrainingFocus(homeTeam, trainingFocus) : homeTeam;
-  const adjustedAway = awayTeam.id === selectedTeamId ? applyTrainingFocus(awayTeam, trainingFocus) : awayTeam;
-
-  return simulateGame(adjustedHome, adjustedAway, { homeTactics, awayTactics });
 }
 
 function getTeam(teamId: string): Team {
