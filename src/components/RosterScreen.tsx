@@ -1,3 +1,4 @@
+import { getTeamProfile } from '../data/teamProfiles';
 import type { Player, PlayerRole, Team } from '../types/basketball';
 
 type RosterScreenProps = {
@@ -12,6 +13,7 @@ const roleOrder: Record<PlayerRole, number> = {
 };
 
 export function RosterScreen({ team }: RosterScreenProps) {
+  const profile = getTeamProfile(team.id);
   const sortedRoster = [...team.roster].sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || b.overall - a.overall);
   const averageOverall = Math.round(average(team.roster.map((player) => player.overall)));
   const averagePotential = Math.round(average(team.roster.map((player) => player.potential)));
@@ -40,13 +42,33 @@ export function RosterScreen({ team }: RosterScreenProps) {
       <article className="panel roster-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Club History</p>
+            <p className="eyebrow">Club Identity</p>
             <h3>{team.shortName} legacy</h3>
           </div>
           <span className="chip">Founded {team.foundedYear}</span>
         </div>
 
         <div className="assistant-notes">
+          {profile && (
+            <>
+              <div className="assistant-note">
+                <strong>Arena</strong>
+                <span>{profile.arena} · {profile.motto}</span>
+              </div>
+              <div className="assistant-note">
+                <strong>Fan Culture</strong>
+                <span>{profile.fanCulture}</span>
+              </div>
+              <div className="assistant-note">
+                <strong>Rivalries</strong>
+                <span>{profile.rivalries.join(' · ')}</span>
+              </div>
+              <div className="assistant-note">
+                <strong>Local Style</strong>
+                <span>{profile.localStyle}</span>
+              </div>
+            </>
+          )}
           <div className="assistant-note">
             <strong>Championship Banners</strong>
             <span>{team.championships} title{team.championships === 1 ? '' : 's'} won.</span>
