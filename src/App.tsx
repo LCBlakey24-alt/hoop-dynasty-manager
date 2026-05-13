@@ -18,7 +18,7 @@ import { TrainingScreen, type TrainingFocus } from './components/TrainingScreen'
 import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
-import { renewPlayerContract } from './game/contracts';
+import { releasePlayer, renewPlayerContract } from './game/contracts';
 import { signFreeAgent } from './game/freeAgents';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
 import { applyPostGameCondition } from './game/playerCondition';
@@ -152,6 +152,10 @@ export function App() {
 
   function handleRenewContract(playerId: string) {
     setSelectedTeamState((currentTeam) => renewPlayerContract(currentTeam, playerId));
+  }
+
+  function handleReleasePlayer(playerId: string) {
+    setSelectedTeamState((currentTeam) => releasePlayer(currentTeam, playerId));
   }
 
   function handleSignFreeAgent(player: Player) {
@@ -370,7 +374,7 @@ export function App() {
         {activeView === 'Team Select' && <TeamSelectScreen selectedTeamId={selectedTeam.id} teams={effectiveTeams} onSelectTeam={handleSelectTeam} />}
         {activeView === 'Roster' && <RosterScreen team={selectedTeam} />}
         {activeView === 'Development' && <DevelopmentScreen latestDevelopmentReport={latestDevelopmentReport} team={selectedTeam} />}
-        {activeView === 'Contracts' && <ContractsScreen team={selectedTeam} onRenewContract={handleRenewContract} />}
+        {activeView === 'Contracts' && <ContractsScreen team={selectedTeam} onReleasePlayer={handleReleasePlayer} onRenewContract={handleRenewContract} />}
         {activeView === 'Free Agents' && <FreeAgentsScreen signedFreeAgentIds={signedFreeAgentIds} team={selectedTeam} onSignFreeAgent={handleSignFreeAgent} />}
         {activeView === 'Board & Finance' && <BoardFinanceScreen boardConfidence={boardConfidence} selectedTeam={selectedTeam} standings={standings} userStanding={userStanding} />}
         {activeView === 'Tactics' && (

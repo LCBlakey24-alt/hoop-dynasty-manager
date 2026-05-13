@@ -1,12 +1,13 @@
-import { createRenewedContract, formatMoney, getContractRiskLabel, getExpiringPlayers, getPlayerContract, getTeamAnnualWages } from '../game/contracts';
+import { canReleasePlayer, createRenewedContract, formatMoney, getContractRiskLabel, getExpiringPlayers, getPlayerContract, getReleaseSaving, getTeamAnnualWages } from '../game/contracts';
 import type { Player, Team } from '../types/basketball';
 
 type ContractsScreenProps = {
   team: Team;
+  onReleasePlayer: (playerId: string) => void;
   onRenewContract: (playerId: string) => void;
 };
 
-export function ContractsScreen({ team, onRenewContract }: ContractsScreenProps) {
+export function ContractsScreen({ team, onReleasePlayer, onRenewContract }: ContractsScreenProps) {
   const annualWages = getTeamAnnualWages(team);
   const expiringPlayers = getExpiringPlayers(team);
   const highestPaid = [...team.roster].sort((a, b) => getPlayerContract(b, team).annualWage - getPlayerContract(a, team).annualWage)[0];
@@ -62,7 +63,7 @@ export function ContractsScreen({ team, onRenewContract }: ContractsScreenProps)
 
           <div className="box-score-list full-box-score-list">
             {expiringPlayers.length > 0 ? expiringPlayers.map((player) => (
-              <ContractRow compact onRenewContract={onRenewContract} player={player} team={team} key={player.id} />
+              <ContractRow compact onReleasePlayer={onReleasePlayer} onRenewContract={onRenewContract} player={player} team={team} key={player.id} />
             )) : (
               <div className="box-score-row">
                 <div>
@@ -86,7 +87,7 @@ export function ContractsScreen({ team, onRenewContract }: ContractsScreenProps)
 
         <div className="box-score-list full-box-score-list">
           {sortedRoster.map((player) => (
-            <ContractRow onRenewContract={onRenewContract} player={player} team={team} key={player.id} />
+            <ContractRow onReleasePlayer={onReleasePlayer} onRenewContract={onRenewContract} player={player} team={team} key={player.id} />
           ))}
         </div>
       </article>
@@ -104,9 +105,10 @@ function SummaryCard({ label, value, helper }: { label: string; value: string; h
   );
 }
 
-function ContractRow({ compact = false, onRenewContract, player, team }: { compact?: boolean; onRenewContract: (playerId: string) => void; player: Player; team: Team }) {
+function ContractRow({ compact = false, onReleasePlayer, onRenewContract, player, team }: { compact?: boolean; onReleasePlayer: (playerId: string) => void; onRenewContract: (playerId: string) => void; player: Player; team: Team }) {
   const contract = getPlayerContract(player, team);
   const renewedContract = createRenewedContract(player, team);
+  const releaseApproval = canReleasePlayer(team, player.id);
   const risk = getContractRiskLabel(player, team);
   const canRenew = contract.yearsRemaining <= 1;
 
@@ -116,6 +118,7 @@ function ContractRow({ compact = false, onRenewContract, player, team }: { compa
         <strong>{player.name}</strong>
         <span>{player.position} · {player.role} · {player.overall} OVR · {player.potential} POT</span>
         {canRenew && <span>Renewal offer: {formatMoney(renewedContract.annualWage)} / {renewedContract.yearsRemaining} year{renewedContract.yearsRemaining === 1 ? '' : 's'}</span>}
+        <span>Release saving: {formatMoney(getReleaseSaving(player, team))} · {releaseApproval.reason}</span>
       </div>
       <StatBlock label="WAGE" value={formatMoney(contract.annualWage)} />
       <StatBlock label="YRS" value={contract.yearsRemaining.toString()} />
@@ -125,6 +128,9 @@ function ContractRow({ compact = false, onRenewContract, player, team }: { compa
           Renew
         </button>
       )}
+      <button className={releaseApproval.approved ? 'option-button' : 'option-button'} disabled={!releaseApproval.approved} onClick={() => onReleasePlayer(player.id)}>
+        Release
+      </button>
     </div>
   );
 }
@@ -143,6 +149,7 @@ function createContractNotes(team: Team) {
   const renewalNeeded = expiringPlayers.filter((player) => getPlayerContract(player, team).status === 'Renewal Needed');
   const expensivePlayers = team.roster.filter((player) => getContractRiskLabel(player, team) === 'Expensive');
   const bargains = team.roster.filter((player) => getContractRiskLabel(player, team) === 'Bargain');
+  const releasable = team.roster.filter((player) => canReleasePlayer(team, player.id).approved).sort((a, b) => getReleaseSaving(b, team) - getReleaseSaving(a, team));
   const notes = [];
 
   if (renewalNeeded.length > 0) {
@@ -156,6 +163,13 @@ function createContractNotes(team: Team) {
     notes.push({
       title: 'Wage efficiency concern',
       body: `${expensivePlayers[0].name} is flagged as expensive compared with squad value. Monitor performance before extending.`,
+    });
+  }
+
+  if (releasable.length > 0) {
+    notes.push({
+      title: 'Potential wage trimming',
+      body: `${releasable[0].name} could be released to save ${formatMoney(getReleaseSaving(releasable[0], team))}.`,
     });
   }
 
