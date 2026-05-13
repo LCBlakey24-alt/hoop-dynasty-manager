@@ -61,7 +61,7 @@ export function saveLocalSeason(
     rotationPlan,
     latestConditionReport,
     latestDevelopmentReport,
-    releasedPlayers,
+    releasedPlayers: releasedPlayers.filter(isPlayer),
     tactics,
     savedAt: new Date().toISOString(),
     trainingFocus,
@@ -92,7 +92,7 @@ function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
     rotationPlan: Array.isArray(save.rotationPlan) ? save.rotationPlan as RotationPlan : null,
     latestConditionReport: Array.isArray(save.latestConditionReport) ? save.latestConditionReport as PlayerConditionChange[] : [],
     latestDevelopmentReport: Array.isArray(save.latestDevelopmentReport) ? save.latestDevelopmentReport as PlayerDevelopmentChange[] : [],
-    releasedPlayers: Array.isArray(save.releasedPlayers) ? save.releasedPlayers as Player[] : [],
+    releasedPlayers: Array.isArray(save.releasedPlayers) ? save.releasedPlayers.filter(isPlayer) : [],
     tactics: { ...defaultTactics, ...save.tactics },
     savedAt: save.savedAt ?? new Date().toISOString(),
     trainingFocus: isTrainingFocus(save.trainingFocus) ? save.trainingFocus : DEFAULT_TRAINING_FOCUS,
@@ -105,4 +105,16 @@ function isTrainingFocus(value: unknown): value is TrainingFocus {
 
 function isTeam(value: unknown): value is Team {
   return Boolean(value && typeof value === 'object' && 'id' in value && 'roster' in value && Array.isArray((value as Team).roster));
+}
+
+function isPlayer(value: unknown): value is Player {
+  return Boolean(
+    value
+      && typeof value === 'object'
+      && 'id' in value
+      && 'name' in value
+      && 'position' in value
+      && 'overall' in value
+      && 'potential' in value,
+  );
 }
