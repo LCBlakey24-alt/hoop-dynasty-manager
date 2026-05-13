@@ -1,3 +1,4 @@
+import { TeamLogo } from './TeamLogo';
 import { getTeamProfile } from '../data/teamProfiles';
 import type { Team } from '../types/basketball';
 
@@ -27,7 +28,7 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
           return (
             <article className={isSelected ? 'panel team-select-card selected' : 'panel team-select-card'} key={team.id}>
               <div className="team-select-card-header">
-                <span className="team-select-badge" style={{ borderColor: team.primaryColor }}>{team.shortName}</span>
+                <TeamLogo teamId={team.id} teamName={team.name} size={76} className="team-select-logo" />
                 <div>
                   <p className="eyebrow">{team.nation}</p>
                   <h3>{team.name}</h3>
