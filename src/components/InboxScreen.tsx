@@ -1,7 +1,7 @@
 import type { SimulatedGameResult } from '../game/simulateGame';
-import type { PlayerConditionChange, Standing, Team } from '../types/basketball';
+import type { PlayerConditionChange, PlayerDevelopmentChange, Standing, Team } from '../types/basketball';
 
-type InboxMessageType = 'Result' | 'Medical' | 'Board' | 'Fixture' | 'Squad';
+type InboxMessageType = 'Result' | 'Medical' | 'Board' | 'Fixture' | 'Squad' | 'Development';
 
 type InboxMessage = {
   id: string;
@@ -15,6 +15,7 @@ type InboxMessage = {
 type InboxScreenProps = {
   boardConfidence: number;
   latestConditionReport: PlayerConditionChange[];
+  latestDevelopmentReport: PlayerDevelopmentChange[];
   latestResult: SimulatedGameResult | null;
   nextAwayTeam: Team | null;
   nextHomeTeam: Team | null;
@@ -26,6 +27,7 @@ type InboxScreenProps = {
 export function InboxScreen({
   boardConfidence,
   latestConditionReport,
+  latestDevelopmentReport,
   latestResult,
   nextAwayTeam,
   nextHomeTeam,
@@ -36,6 +38,7 @@ export function InboxScreen({
   const messages = createInboxMessages({
     boardConfidence,
     latestConditionReport,
+    latestDevelopmentReport,
     latestResult,
     nextAwayTeam,
     nextHomeTeam,
@@ -88,6 +91,7 @@ type CreateInboxInput = InboxScreenProps;
 function createInboxMessages({
   boardConfidence,
   latestConditionReport,
+  latestDevelopmentReport,
   latestResult,
   nextAwayTeam,
   nextHomeTeam,
@@ -109,6 +113,35 @@ function createInboxMessages({
       body: latestResult.summary,
       tag: userPlayed ? (userWon ? 'Win' : 'Review') : 'League',
       priority: userPlayed && !userWon ? 'High' : 'Normal',
+    });
+  }
+
+  const developmentBreakthroughs = latestDevelopmentReport.filter((report) => report.overallAfter > report.overallBefore);
+  const topDevelopment = latestDevelopmentReport
+    .filter((report) => report.progressGain > 0)
+    .sort((a, b) => b.progressGain - a.progressGain)
+    .slice(0, 2);
+
+  developmentBreakthroughs.slice(0, 3).forEach((report) => {
+    messages.push({
+      id: `development-breakthrough-${report.playerId}`,
+      type: 'Development',
+      title: `${report.playerName} improves to ${report.overallAfter} OVR`,
+      body: report.note,
+      tag: 'Growth',
+      priority: 'High',
+    });
+  });
+
+  if (developmentBreakthroughs.length === 0 && topDevelopment.length > 0) {
+    const best = topDevelopment[0];
+    messages.push({
+      id: 'development-progress',
+      type: 'Development',
+      title: `${best.playerName} showing development progress`,
+      body: `${best.playerName} gained ${best.progressGain} development progress and is now ${best.nextProgress}% toward the next OVR step.`,
+      tag: 'Progress',
+      priority: 'Normal',
     });
   }
 

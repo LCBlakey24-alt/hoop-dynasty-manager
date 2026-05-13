@@ -1,10 +1,10 @@
 import type { TrainingFocus } from '../components/TrainingScreen';
 import { defaultTactics, type TacticalSettings } from './tactics';
 import type { SimulatedGameResult } from './simulateGame';
-import type { PlayerConditionChange, RotationPlan, Team } from '../types/basketball';
+import type { PlayerConditionChange, PlayerDevelopmentChange, RotationPlan, Team } from '../types/basketball';
 
 const SAVE_KEY = 'hoop-dynasty-manager-save-v1';
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 const DEFAULT_TEAM_ID = 'bristol-breakers';
 const DEFAULT_TRAINING_FOCUS: TrainingFocus = 'Balanced';
 
@@ -16,6 +16,7 @@ export type LocalSeasonSave = {
   selectedTeamState: Team | null;
   rotationPlan: RotationPlan | null;
   latestConditionReport: PlayerConditionChange[];
+  latestDevelopmentReport: PlayerDevelopmentChange[];
   tactics: TacticalSettings;
   savedAt: string;
   trainingFocus: TrainingFocus;
@@ -47,6 +48,7 @@ export function saveLocalSeason(
   rotationPlan: RotationPlan | null = null,
   selectedTeamState: Team | null = null,
   latestConditionReport: PlayerConditionChange[] = [],
+  latestDevelopmentReport: PlayerDevelopmentChange[] = [],
 ) {
   const save: LocalSeasonSave = {
     version: SAVE_VERSION,
@@ -56,6 +58,7 @@ export function saveLocalSeason(
     selectedTeamState,
     rotationPlan,
     latestConditionReport,
+    latestDevelopmentReport,
     tactics,
     savedAt: new Date().toISOString(),
     trainingFocus,
@@ -85,6 +88,7 @@ function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
     selectedTeamState: isTeam(save.selectedTeamState) ? save.selectedTeamState : null,
     rotationPlan: Array.isArray(save.rotationPlan) ? save.rotationPlan as RotationPlan : null,
     latestConditionReport: Array.isArray(save.latestConditionReport) ? save.latestConditionReport as PlayerConditionChange[] : [],
+    latestDevelopmentReport: Array.isArray(save.latestDevelopmentReport) ? save.latestDevelopmentReport as PlayerDevelopmentChange[] : [],
     tactics: { ...defaultTactics, ...save.tactics },
     savedAt: save.savedAt ?? new Date().toISOString(),
     trainingFocus: isTrainingFocus(save.trainingFocus) ? save.trainingFocus : DEFAULT_TRAINING_FOCUS,

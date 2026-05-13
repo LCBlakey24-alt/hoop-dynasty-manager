@@ -130,7 +130,7 @@ export function RosterScreen({ team }: RosterScreenProps) {
             <span>Role</span>
             <span>OVR</span>
             <span>POT</span>
-            <span>Morale</span>
+            <span>Development</span>
             <span>Form</span>
           </div>
 
@@ -175,7 +175,7 @@ function RosterRow({ player }: RosterRowProps) {
       <span className={`role-pill role-${player.role.toLowerCase()}`}>{player.role}</span>
       <strong>{player.overall}</strong>
       <strong>{player.potential}</strong>
-      <Meter value={player.morale} />
+      <Meter value={player.developmentProgress ?? 0} />
       <Meter value={player.form} />
     </div>
   );
