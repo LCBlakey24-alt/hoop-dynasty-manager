@@ -26,6 +26,12 @@ export type PlayerInjury = {
   gamesRemaining: number;
 };
 
+export type PlayerContract = {
+  annualWage: number;
+  yearsRemaining: number;
+  status: 'Secure' | 'Expiring' | 'Renewal Needed' | 'Youth Deal';
+};
+
 export type Player = {
   id: string;
   name: string;
@@ -40,6 +46,7 @@ export type Player = {
   fatigue?: number;
   injury?: PlayerInjury | null;
   developmentProgress?: number;
+  contract?: PlayerContract;
 };
 
 export type Team = {
