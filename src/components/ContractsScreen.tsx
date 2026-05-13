@@ -10,9 +10,11 @@ type ContractsScreenProps = {
 export function ContractsScreen({ team, onReleasePlayer, onRenewContract }: ContractsScreenProps) {
   const annualWages = getTeamAnnualWages(team);
   const expiringPlayers = getExpiringPlayers(team);
+  const highRiskPlayers = team.roster.filter((player) => getContractRiskLabel(player, team) === 'High risk');
+  const bargainPlayers = team.roster.filter((player) => getContractRiskLabel(player, team) === 'Bargain');
   const highestPaid = [...team.roster].sort((a, b) => getPlayerContract(b, team).annualWage - getPlayerContract(a, team).annualWage)[0];
   const bestValue = [...team.roster].sort((a, b) => getValueScore(b, team) - getValueScore(a, team))[0];
-  const sortedRoster = [...team.roster].sort((a, b) => getPlayerContract(b, team).annualWage - getPlayerContract(a, team).annualWage);
+  const sortedRoster = [...team.roster].sort((a, b) => getContractPriorityScore(b, team) - getContractPriorityScore(a, team));
 
   return (
     <section className="roster-screen">
@@ -27,9 +29,9 @@ export function ContractsScreen({ team, onReleasePlayer, onRenewContract }: Cont
 
       <section className="roster-summary-grid">
         <SummaryCard label="Annual Wages" value={formatMoney(annualWages)} helper="Current squad commitment" />
+        <SummaryCard label="High Risk" value={highRiskPlayers.length.toString()} helper="Key expiring contracts" />
         <SummaryCard label="Expiring Deals" value={expiringPlayers.length.toString()} helper="Players with 1 year left" />
-        <SummaryCard label="Highest Paid" value={highestPaid.name} helper={`${formatMoney(getPlayerContract(highestPaid, team).annualWage)} / year`} />
-        <SummaryCard label="Best Value" value={bestValue.name} helper={`${bestValue.overall} OVR · ${formatMoney(getPlayerContract(bestValue, team).annualWage)}`} />
+        <SummaryCard label="Bargains" value={bargainPlayers.length.toString()} helper={bestValue ? `Best value: ${bestValue.name}` : 'No clear bargains'} />
       </section>
 
       <section className="result-grid">
@@ -39,7 +41,7 @@ export function ContractsScreen({ team, onReleasePlayer, onRenewContract }: Cont
               <p className="eyebrow">Contract Risk</p>
               <h3>Priority decisions</h3>
             </div>
-            <span className="chip">Staff view</span>
+            <span className="chip">Sorted by urgency</span>
           </div>
 
           <div className="assistant-notes">
@@ -55,23 +57,21 @@ export function ContractsScreen({ team, onReleasePlayer, onRenewContract }: Cont
         <article className="panel result-detail-panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Expiring Deals</p>
-              <h3>Renewal watch</h3>
+              <p className="eyebrow">Wage Structure</p>
+              <h3>Top earners and value</h3>
             </div>
-            <span className="chip">{expiringPlayers.length} players</span>
+            <span className="chip">Finance view</span>
           </div>
 
-          <div className="box-score-list full-box-score-list">
-            {expiringPlayers.length > 0 ? expiringPlayers.map((player) => (
-              <ContractRow compact onReleasePlayer={onReleasePlayer} onRenewContract={onRenewContract} player={player} team={team} key={player.id} />
-            )) : (
-              <div className="box-score-row">
-                <div>
-                  <strong>No urgent renewals</strong>
-                  <span>There are no players with contracts expiring within one year.</span>
-                </div>
-              </div>
-            )}
+          <div className="assistant-notes">
+            <div className="assistant-note">
+              <strong>Highest paid</strong>
+              <span>{highestPaid.name} earns {formatMoney(getPlayerContract(highestPaid, team).annualWage)} per year.</span>
+            </div>
+            <div className="assistant-note">
+              <strong>Best value</strong>
+              <span>{bestValue.name} offers the best current balance of OVR, upside and wage.</span>
+            </div>
           </div>
         </article>
       </section>
@@ -80,9 +80,16 @@ export function ContractsScreen({ team, onReleasePlayer, onRenewContract }: Cont
         <div className="panel-header">
           <div>
             <p className="eyebrow">Squad Contracts</p>
-            <h3>Full wage table</h3>
+            <h3>Priority wage table</h3>
           </div>
-          <span className="chip">{team.roster.length} contracts</span>
+          <span className="chip">Renewals · risks · bargains</span>
+        </div>
+
+        <div className="assistant-notes" style={{ marginBottom: '1rem' }}>
+          <div className="assistant-note">
+            <strong>Sorting logic</strong>
+            <span>Players are ordered by renewal urgency, wage risk, release value, annual wage and squad importance.</span>
+          </div>
         </div>
 
         <div className="box-score-list full-box-score-list">
@@ -105,7 +112,7 @@ function SummaryCard({ label, value, helper }: { label: string; value: string; h
   );
 }
 
-function ContractRow({ compact = false, onReleasePlayer, onRenewContract, player, team }: { compact?: boolean; onReleasePlayer: (playerId: string) => void; onRenewContract: (playerId: string) => void; player: Player; team: Team }) {
+function ContractRow({ onReleasePlayer, onRenewContract, player, team }: { onReleasePlayer: (playerId: string) => void; onRenewContract: (playerId: string) => void; player: Player; team: Team }) {
   const contract = getPlayerContract(player, team);
   const renewedContract = createRenewedContract(player, team);
   const releaseApproval = canReleasePlayer(team, player.id);
@@ -116,19 +123,19 @@ function ContractRow({ compact = false, onReleasePlayer, onRenewContract, player
     <div className="box-score-row">
       <div>
         <strong>{player.name}</strong>
-        <span>{player.position} · {player.role} · {player.overall} OVR · {player.potential} POT</span>
+        <span>{player.position} · {player.role} · {player.overall} OVR · {player.potential} POT · {getContractTag(player, team)}</span>
         {canRenew && <span>Renewal offer: {formatMoney(renewedContract.annualWage)} / {renewedContract.yearsRemaining} year{renewedContract.yearsRemaining === 1 ? '' : 's'}</span>}
         <span>Release saving: {formatMoney(getReleaseSaving(player, team))} · {releaseApproval.reason}</span>
       </div>
       <StatBlock label="WAGE" value={formatMoney(contract.annualWage)} />
       <StatBlock label="YRS" value={contract.yearsRemaining.toString()} />
-      <StatBlock label={compact ? 'STATUS' : 'RISK'} value={compact ? contract.status : risk} />
+      <StatBlock label="RISK" value={risk} />
       {canRenew && (
         <button className="option-button active" onClick={() => onRenewContract(player.id)}>
           Renew
         </button>
       )}
-      <button className={releaseApproval.approved ? 'option-button' : 'option-button'} disabled={!releaseApproval.approved} onClick={() => onReleasePlayer(player.id)}>
+      <button className="option-button" disabled={!releaseApproval.approved} onClick={() => onReleasePlayer(player.id)}>
         Release
       </button>
     </div>
@@ -188,6 +195,26 @@ function createContractNotes(team: Team) {
   }
 
   return notes;
+}
+
+function getContractPriorityScore(player: Player, team: Team) {
+  const contract = getPlayerContract(player, team);
+  const risk = getContractRiskLabel(player, team);
+  const releaseApproval = canReleasePlayer(team, player.id);
+  const riskScore = risk === 'High risk' ? 120 : risk === 'Expiring' ? 90 : risk === 'Expensive' ? 65 : risk === 'Bargain' ? 45 : 20;
+  const renewalScore = contract.yearsRemaining <= 1 ? 70 : 0;
+  const releaseScore = releaseApproval.approved ? getReleaseSaving(player, team) / 5000 : 0;
+
+  return riskScore + renewalScore + releaseScore + contract.annualWage / 7000 + player.overall;
+}
+
+function getContractTag(player: Player, team: Team) {
+  const risk = getContractRiskLabel(player, team);
+  if (risk === 'High risk') return 'Priority renewal';
+  if (risk === 'Expiring') return 'Expiring deal';
+  if (risk === 'Expensive') return 'Wage concern';
+  if (risk === 'Bargain') return 'Value deal';
+  return 'Stable deal';
 }
 
 function getValueScore(player: Player, team: Team) {
