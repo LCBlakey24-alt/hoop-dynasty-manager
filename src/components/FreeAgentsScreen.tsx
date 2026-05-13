@@ -1,5 +1,5 @@
 import { freeAgents } from '../data/freeAgents';
-import { createFreeAgentContract, getFreeAgentFitLabel, getFreeAgentInterest } from '../game/freeAgents';
+import { canSignFreeAgent, createFreeAgentContract, getFreeAgentFitLabel, getFreeAgentInterest } from '../game/freeAgents';
 import { formatMoney } from '../game/contracts';
 import type { Player, Team } from '../types/basketball';
 
@@ -40,7 +40,7 @@ export function FreeAgentsScreen({ signedFreeAgentIds, team, onSignFreeAgent }: 
             <p className="eyebrow">Market</p>
             <h3>Free agent pool</h3>
           </div>
-          <span className="chip">Unsigned</span>
+          <span className="chip">Board approval active</span>
         </div>
 
         <div className="box-score-list full-box-score-list">
@@ -63,21 +63,22 @@ export function FreeAgentsScreen({ signedFreeAgentIds, team, onSignFreeAgent }: 
 
 function FreeAgentRow({ player, team, onSignFreeAgent }: { player: Player; team: Team; onSignFreeAgent: (player: Player) => void }) {
   const contract = createFreeAgentContract(player, team);
+  const approval = canSignFreeAgent(player, team);
   const interest = getFreeAgentInterest(player, team);
-  const canSign = interest !== 'Unlikely';
 
   return (
     <div className="box-score-row">
       <div>
         <strong>{player.name}</strong>
         <span>{player.age} · {player.position} · {player.archetype} · {getFreeAgentFitLabel(player, team)}</span>
+        <span>{approval.reason} · Projected wages: {formatMoney(approval.projectedWages)} / {formatMoney(approval.wageBudget)}</span>
       </div>
       <StatBlock label="OVR" value={player.overall.toString()} />
       <StatBlock label="POT" value={player.potential.toString()} />
       <StatBlock label="WAGE" value={formatMoney(contract.annualWage)} />
       <StatBlock label="INT" value={interest} />
-      <button className={canSign ? 'option-button active' : 'option-button'} disabled={!canSign} onClick={() => onSignFreeAgent(player)}>
-        Sign
+      <button className={approval.approved ? 'option-button active' : 'option-button'} disabled={!approval.approved} onClick={() => onSignFreeAgent(player)}>
+        {approval.approved ? 'Sign' : 'Blocked'}
       </button>
     </div>
   );

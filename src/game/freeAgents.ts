@@ -1,5 +1,7 @@
-import { getPlayerContract } from './contracts';
+import { getPlayerContract, getTeamAnnualWages } from './contracts';
 import type { Player, Team } from '../types/basketball';
+
+const MAX_RECOMMENDED_ROSTER_SIZE = 14;
 
 export function createFreeAgentContract(player: Player, team: Team) {
   const marketContract = getPlayerContract(player, team);
@@ -15,6 +17,7 @@ export function createFreeAgentContract(player: Player, team: Team) {
 }
 
 export function signFreeAgent(team: Team, player: Player): Team {
+  if (!canSignFreeAgent(player, team).approved) return team;
   if (team.roster.some((candidate) => candidate.id === player.id)) return team;
 
   const signedPlayer: Player = {
@@ -28,6 +31,36 @@ export function signFreeAgent(team: Team, player: Player): Team {
     ...team,
     roster: [...team.roster, signedPlayer],
   };
+}
+
+export function canSignFreeAgent(player: Player, team: Team) {
+  const contract = createFreeAgentContract(player, team);
+  const currentWages = getTeamAnnualWages(team);
+  const wageBudget = getSuggestedWageBudget(team);
+  const projectedWages = currentWages + contract.annualWage;
+  const overBudgetPercent = Math.round((projectedWages / wageBudget) * 100);
+
+  if (team.roster.some((candidate) => candidate.id === player.id)) {
+    return { approved: false, reason: 'Already signed', projectedWages, wageBudget };
+  }
+
+  if (team.roster.length >= MAX_RECOMMENDED_ROSTER_SIZE) {
+    return { approved: false, reason: 'Roster full', projectedWages, wageBudget };
+  }
+
+  if (projectedWages > wageBudget * 1.08) {
+    return { approved: false, reason: `Board blocks wage spend at ${overBudgetPercent}% of budget`, projectedWages, wageBudget };
+  }
+
+  if (getFreeAgentInterest(player, team) === 'Unlikely') {
+    return { approved: false, reason: 'Player not interested', projectedWages, wageBudget };
+  }
+
+  return { approved: true, reason: projectedWages > wageBudget ? 'Board approval: tight but allowed' : 'Board approval granted', projectedWages, wageBudget };
+}
+
+export function getSuggestedWageBudget(team: Team) {
+  return Math.round(240000 + team.reputation * 3900);
 }
 
 export function getFreeAgentFitLabel(player: Player, team: Team) {
