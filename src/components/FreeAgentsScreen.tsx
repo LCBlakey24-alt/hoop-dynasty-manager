@@ -10,9 +10,12 @@ type FreeAgentsScreenProps = {
 };
 
 export function FreeAgentsScreen({ signedFreeAgentIds, team, onSignFreeAgent }: FreeAgentsScreenProps) {
-  const availableFreeAgents = freeAgents.filter((player) => !signedFreeAgentIds.includes(player.id));
+  const availableFreeAgents = freeAgents
+    .filter((player) => !signedFreeAgentIds.includes(player.id))
+    .sort((a, b) => getMarketScore(b, team) - getMarketScore(a, team));
   const bestOverall = [...availableFreeAgents].sort((a, b) => b.overall - a.overall)[0];
   const bestProspect = [...availableFreeAgents].sort((a, b) => b.potential - a.potential)[0];
+  const approvedCount = availableFreeAgents.filter((player) => canSignFreeAgent(player, team).approved).length;
   const interestedCount = availableFreeAgents.filter((player) => getFreeAgentInterest(player, team) !== 'Unlikely').length;
   const openRosterSpots = Math.max(0, 14 - team.roster.length);
 
@@ -24,7 +27,7 @@ export function FreeAgentsScreen({ signedFreeAgentIds, team, onSignFreeAgent }: 
           <h3>Available players</h3>
           <p className="muted">Scout unsigned players, compare fit and add depth to your squad.</p>
         </div>
-        <span className="chip">{availableFreeAgents.length} available</span>
+        <span className="chip">{availableFreeAgents.length} available · {approvedCount} approved</span>
       </div>
 
       <section className="roster-summary-grid">
@@ -40,7 +43,14 @@ export function FreeAgentsScreen({ signedFreeAgentIds, team, onSignFreeAgent }: 
             <p className="eyebrow">Market</p>
             <h3>Free agent pool</h3>
           </div>
-          <span className="chip">Board approval active</span>
+          <span className="chip">Sorted by fit</span>
+        </div>
+
+        <div className="assistant-notes" style={{ marginBottom: '1rem' }}>
+          <div className="assistant-note">
+            <strong>Market sorting</strong>
+            <span>Players are ranked by board approval, interest, team fit, OVR and potential upside.</span>
+          </div>
         </div>
 
         <div className="box-score-list full-box-score-list">
@@ -65,12 +75,13 @@ function FreeAgentRow({ player, team, onSignFreeAgent }: { player: Player; team:
   const contract = createFreeAgentContract(player, team);
   const approval = canSignFreeAgent(player, team);
   const interest = getFreeAgentInterest(player, team);
+  const fit = getFreeAgentFitLabel(player, team);
 
   return (
     <div className="box-score-row">
       <div>
         <strong>{player.name}</strong>
-        <span>{player.age} · {player.position} · {player.archetype} · {getFreeAgentFitLabel(player, team)}</span>
+        <span>{player.age} · {player.position} · {player.archetype} · {fit}</span>
         <span>{approval.reason} · Projected wages: {formatMoney(approval.projectedWages)} / {formatMoney(approval.wageBudget)}</span>
       </div>
       <StatBlock label="OVR" value={player.overall.toString()} />
@@ -101,4 +112,16 @@ function StatBlock({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
     </div>
   );
+}
+
+function getMarketScore(player: Player, team: Team) {
+  const approval = canSignFreeAgent(player, team);
+  const interest = getFreeAgentInterest(player, team);
+  const fit = getFreeAgentFitLabel(player, team);
+  const approvalScore = approval.approved ? 100 : -100;
+  const interestScore = interest === 'Very Interested' ? 40 : interest === 'Interested' ? 25 : interest === 'Open' ? 10 : -40;
+  const fitScore = fit === 'Fills need' ? 24 : fit === 'Ready rotation' ? 18 : fit === 'Upside punt' ? 14 : fit === 'Veteran cover' ? 8 : 4;
+  const upsideScore = Math.max(0, player.potential - player.overall) * 1.5;
+
+  return approvalScore + interestScore + fitScore + player.overall + upsideScore;
 }
