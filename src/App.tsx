@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Medal, Shield, Trophy, Users } from 'lucide-react';
+import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, Shield, Trophy, Users } from 'lucide-react';
+import { InboxScreen } from './components/InboxScreen';
 import { LandingScreen } from './components/LandingScreen';
 import { LeagueScreen } from './components/LeagueScreen';
 import { MatchResultScreen } from './components/MatchResultScreen';
@@ -23,10 +24,11 @@ import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, PlayerConditionChange, RotationPlan, Team } from './types/basketball';
 
-type ActiveView = 'Landing' | 'Dashboard' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
+type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
+  { label: 'Inbox', icon: Inbox, enabled: true },
   { label: 'Team Select', icon: Users, enabled: true },
   { label: 'Roster', icon: Users, enabled: true },
   { label: 'Tactics', icon: Shield, enabled: true },
@@ -318,6 +320,18 @@ export function App() {
             userGameResult={userGameResult}
             userStanding={userStanding}
             userWonLatestGame={userWonLatestGame}
+          />
+        )}
+        {activeView === 'Inbox' && (
+          <InboxScreen
+            boardConfidence={boardConfidence}
+            latestConditionReport={latestConditionReport}
+            latestResult={latestResult}
+            nextAwayTeam={nextAwayTeam}
+            nextHomeTeam={nextHomeTeam}
+            selectedTeam={selectedTeam}
+            standings={standings}
+            userStanding={userStanding}
           />
         )}
 
