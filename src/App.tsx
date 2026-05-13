@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, Users } from 'lucide-react';
+import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { ContractsScreen } from './components/ContractsScreen';
 import { DevelopmentScreen } from './components/DevelopmentScreen';
+import { FreeAgentsScreen } from './components/FreeAgentsScreen';
 import { InboxScreen } from './components/InboxScreen';
 import { LandingScreen } from './components/LandingScreen';
 import { LeagueScreen } from './components/LeagueScreen';
@@ -18,6 +19,7 @@ import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { renewPlayerContract } from './game/contracts';
+import { signFreeAgent } from './game/freeAgents';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
 import { applyPostGameCondition } from './game/playerCondition';
 import { applyPostGameDevelopment } from './game/playerDevelopment';
@@ -27,9 +29,9 @@ import { createDefaultRotation, normaliseRotation } from './game/rotation';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
-import type { Fixture, PlayerConditionChange, PlayerDevelopmentChange, RotationPlan, Team } from './types/basketball';
+import type { Fixture, Player, PlayerConditionChange, PlayerDevelopmentChange, RotationPlan, Team } from './types/basketball';
 
-type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Contracts' | 'Board & Finance' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
+type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Contracts' | 'Free Agents' | 'Board & Finance' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -38,6 +40,7 @@ const navItems = [
   { label: 'Roster', icon: Users, enabled: true },
   { label: 'Development', icon: TrendingUp, enabled: true },
   { label: 'Contracts', icon: ScrollText, enabled: true },
+  { label: 'Free Agents', icon: UserPlus, enabled: true },
   { label: 'Board & Finance', icon: Banknote, enabled: true },
   { label: 'Tactics', icon: Shield, enabled: true },
   { label: 'Schedule', icon: CalendarDays, enabled: true },
@@ -74,6 +77,7 @@ export function App() {
   const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
   const rotation = normaliseRotation(selectedTeam, rotationPlan);
   const effectiveTeams = mergeTeamState(teams, selectedTeam);
+  const signedFreeAgentIds = selectedTeam.roster.filter((player) => player.id.startsWith('fa-')).map((player) => player.id);
   const topPlayers = [...selectedTeam.roster]
     .sort((a, b) => b.overall - a.overall)
     .slice(0, 3);
@@ -148,6 +152,10 @@ export function App() {
 
   function handleRenewContract(playerId: string) {
     setSelectedTeamState((currentTeam) => renewPlayerContract(currentTeam, playerId));
+  }
+
+  function handleSignFreeAgent(player: Player) {
+    setSelectedTeamState((currentTeam) => signFreeAgent(currentTeam, player));
   }
 
   function simulateFixtureWithManagedState(fixture: Fixture, managedTeam: Team) {
@@ -363,6 +371,7 @@ export function App() {
         {activeView === 'Roster' && <RosterScreen team={selectedTeam} />}
         {activeView === 'Development' && <DevelopmentScreen latestDevelopmentReport={latestDevelopmentReport} team={selectedTeam} />}
         {activeView === 'Contracts' && <ContractsScreen team={selectedTeam} onRenewContract={handleRenewContract} />}
+        {activeView === 'Free Agents' && <FreeAgentsScreen signedFreeAgentIds={signedFreeAgentIds} team={selectedTeam} onSignFreeAgent={handleSignFreeAgent} />}
         {activeView === 'Board & Finance' && <BoardFinanceScreen boardConfidence={boardConfidence} selectedTeam={selectedTeam} standings={standings} userStanding={userStanding} />}
         {activeView === 'Tactics' && (
           <TacticsScreen
