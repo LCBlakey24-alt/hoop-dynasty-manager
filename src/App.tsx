@@ -70,6 +70,7 @@ export function App() {
   const [rotationPlan, setRotationPlan] = useState<RotationPlan>(initialRotation);
   const [latestConditionReport, setLatestConditionReport] = useState<PlayerConditionChange[]>(initialSave?.latestConditionReport ?? []);
   const [latestDevelopmentReport, setLatestDevelopmentReport] = useState<PlayerDevelopmentChange[]>(initialSave?.latestDevelopmentReport ?? []);
+  const [releasedPlayers, setReleasedPlayers] = useState<Player[]>(initialSave?.releasedPlayers ?? []);
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
@@ -77,6 +78,7 @@ export function App() {
   const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
   const rotation = normaliseRotation(selectedTeam, rotationPlan);
   const effectiveTeams = mergeTeamState(teams, selectedTeam);
+  const freeAgentMarket = dedupePlayers([...releasedPlayers]);
   const signedFreeAgentIds = selectedTeam.roster.filter((player) => player.id.startsWith('fa-')).map((player) => player.id);
   const topPlayers = [...selectedTeam.roster]
     .sort((a, b) => b.overall - a.overall)
@@ -84,9 +86,9 @@ export function App() {
   const hasSave = Boolean(initialSave) || results.length > 0 || playoffResults.length > 0;
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport);
+    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, releasedPlayers);
     setSavedAt(save.savedAt);
-  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport]);
+  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, releasedPlayers]);
 
   const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
   const standings = calculateStandings(effectiveTeams, results);
@@ -112,6 +114,7 @@ export function App() {
     setRotationPlan(createDefaultRotation(freshTeam));
     setLatestConditionReport([]);
     setLatestDevelopmentReport([]);
+    setReleasedPlayers([]);
   }
 
   function handleResetSeason() {
@@ -142,6 +145,7 @@ export function App() {
     setRotationPlan(createDefaultRotation(freshTeam));
     setLatestConditionReport([]);
     setLatestDevelopmentReport([]);
+    setReleasedPlayers([]);
     setResults([]);
     setPlayoffResults([]);
     setTactics(defaultTactics);
@@ -155,11 +159,16 @@ export function App() {
   }
 
   function handleReleasePlayer(playerId: string) {
+    const playerToRelease = selectedTeam.roster.find((player) => player.id === playerId);
+    if (!playerToRelease) return;
+
     setSelectedTeamState((currentTeam) => releasePlayer(currentTeam, playerId));
+    setReleasedPlayers((currentPlayers) => dedupePlayers([...currentPlayers, { ...playerToRelease, morale: Math.max(40, playerToRelease.morale - 6) }]));
   }
 
   function handleSignFreeAgent(player: Player) {
     setSelectedTeamState((currentTeam) => signFreeAgent(currentTeam, player));
+    setReleasedPlayers((currentPlayers) => currentPlayers.filter((candidate) => candidate.id !== player.id));
   }
 
   function simulateFixtureWithManagedState(fixture: Fixture, managedTeam: Team) {
@@ -375,7 +384,7 @@ export function App() {
         {activeView === 'Roster' && <RosterScreen team={selectedTeam} />}
         {activeView === 'Development' && <DevelopmentScreen latestDevelopmentReport={latestDevelopmentReport} team={selectedTeam} />}
         {activeView === 'Contracts' && <ContractsScreen team={selectedTeam} onReleasePlayer={handleReleasePlayer} onRenewContract={handleRenewContract} />}
-        {activeView === 'Free Agents' && <FreeAgentsScreen signedFreeAgentIds={signedFreeAgentIds} team={selectedTeam} onSignFreeAgent={handleSignFreeAgent} />}
+        {activeView === 'Free Agents' && <FreeAgentsScreen releasedPlayers={freeAgentMarket} signedFreeAgentIds={signedFreeAgentIds} team={selectedTeam} onSignFreeAgent={handleSignFreeAgent} />}
         {activeView === 'Board & Finance' && <BoardFinanceScreen boardConfidence={boardConfidence} selectedTeam={selectedTeam} standings={standings} userStanding={userStanding} />}
         {activeView === 'Tactics' && (
           <TacticsScreen
@@ -438,6 +447,15 @@ export function App() {
       </section>
     </main>
   );
+}
+
+function dedupePlayers(players: Player[]) {
+  const seenIds = new Set<string>();
+  return players.filter((player) => {
+    if (seenIds.has(player.id)) return false;
+    seenIds.add(player.id);
+    return true;
+  });
 }
 
 function mergeTeamState(teamList: Team[], managedTeam: Team) {
@@ -644,58 +662,215 @@ function DashboardView({
   );
 }
 
-function getTeam(teamId: string, teamList: Team[] = teams): Team {
-  const team = teamList.find((candidate) => candidate.id === teamId);
-
-  if (!team) {
-    throw new Error(`Team not found: ${teamId}`);
-  }
-
-  return team;
+function dedupePlayers(players: Player[]) {
+  const seenIds = new Set<string>();
+  return players.filter((player) => {
+    if (seenIds.has(player.id)) return false;
+    seenIds.add(player.id);
+    return true;
+  });
 }
 
-function hasResultForFixture(fixture: Fixture, results: SimulatedGameResult[]) {
-  return results.some((result) => isResultForFixture(fixture, result));
+function mergeTeamState(teamList: Team[], managedTeam: Team) {
+  return teamList.map((team) => (team.id === managedTeam.id ? managedTeam : team));
 }
 
-function isResultForFixture(fixture: Fixture, result: SimulatedGameResult) {
-  return result.homeTeamId === fixture.homeTeamId && result.awayTeamId === fixture.awayTeamId;
+function TeamMini({ name, colour }: { name: string; colour: string }) {
+  return (
+    <div className="team-mini" style={{ borderColor: colour }}>
+      <span>{name}</span>
+    </div>
+  );
 }
 
-function getOrdinalPosition(position: number) {
-  if (position <= 0) return '—';
-
-  const suffix = position % 10 === 1 && position !== 11
-    ? 'st'
-    : position % 10 === 2 && position !== 12
-      ? 'nd'
-      : position % 10 === 3 && position !== 13
-        ? 'rd'
-        : 'th';
-
-  return `${position}${suffix}`;
+function ScoreBlock({ team, score, colour }: { team: string; score: number; colour: string }) {
+  return (
+    <div className="score-block" style={{ borderColor: colour }}>
+      <span>{team}</span>
+      <strong>{score}</strong>
+    </div>
+  );
 }
 
-function calculateBoardConfidence({
-  standings,
-  selectedTeamId,
-  latestUserGame,
-}: {
+type DashboardViewProps = {
+  boardConfidence: number;
+  currentRound: number;
+  handleResetSeason: () => void;
+  handleSimulateCurrentRound: () => void;
+  handleSimulateNextFixture: () => void;
+  handleSimulateRestOfSeason: () => void;
+  latestResult: SimulatedGameResult | null;
+  nextAwayTeam: Team | null;
+  nextFixture: Fixture | undefined;
+  nextHomeTeam: Team | null;
+  nextMatchupLabel: string | null;
+  results: SimulatedGameResult[];
+  savedAt: string | null;
+  selectedTeam: Team;
   standings: ReturnType<typeof calculateStandings>;
-  selectedTeamId: string;
-  latestUserGame: SimulatedGameResult | null;
-}) {
-  const teamIndex = standings.findIndex((standing) => standing.teamId === selectedTeamId);
+  tactics: TacticalSettings;
+  topPlayers: Team['roster'];
+  userGameResult: SimulatedGameResult | null;
+  userStanding: ReturnType<typeof calculateStandings>[number] | undefined;
+  userWonLatestGame: boolean;
+};
 
-  if (teamIndex === -1) return 70;
+function DashboardView({
+  boardConfidence,
+  currentRound,
+  handleResetSeason,
+  handleSimulateCurrentRound,
+  handleSimulateNextFixture,
+  handleSimulateRestOfSeason,
+  latestResult,
+  nextAwayTeam,
+  nextFixture,
+  nextHomeTeam,
+  nextMatchupLabel,
+  results,
+  savedAt,
+  selectedTeam,
+  standings,
+  tactics,
+  topPlayers,
+  userGameResult,
+  userStanding,
+  userWonLatestGame,
+}: DashboardViewProps) {
+  return (
+    <section className="dashboard-grid">
+      <article className="panel next-game-panel">
+        <p className="eyebrow">Next Fixture</p>
+        {nextFixture && nextHomeTeam && nextAwayTeam ? (
+          <>
+            <div className="matchup-row">
+              <TeamMini name={nextHomeTeam.shortName} colour={nextHomeTeam.primaryColor} />
+              <span className="versus">VS</span>
+              <TeamMini name={nextAwayTeam.shortName} colour={nextAwayTeam.primaryColor} />
+            </div>
+            <h3>{nextHomeTeam.name} vs {nextAwayTeam.name}</h3>
+            <p className="muted">Round {nextFixture.round} of {totalRounds} · BSBL Regular Season</p>
+            <div className="tactics-summary-row">
+              <span>{nextMatchupLabel ?? 'Hidden matchup'}</span>
+              <span>{tactics.pace}</span>
+              <span>{tactics.offensiveFocus}</span>
+              <span>{tactics.defensiveStyle}</span>
+            </div>
+            <button className="primary-action" onClick={handleSimulateNextFixture}>Simulate Next Fixture</button>
+            <button className="secondary-action" onClick={handleSimulateCurrentRound}>Simulate Round {currentRound}</button>
+            <button className="secondary-action" onClick={handleSimulateRestOfSeason}>Simulate Rest of Season</button>
+          </>
+        ) : (
+          <>
+            <h3>Regular season complete</h3>
+            <p className="muted">All {seasonFixtures.length} BSBL regular season games have been simulated.</p>
+          </>
+        )}
+      </article>
 
-  const standing = standings[teamIndex];
-  const rank = teamIndex + 1;
-  const totalTeams = standings.length;
-  const rankScore = Math.round(((totalTeams - rank) / Math.max(1, totalTeams - 1)) * 22);
-  const recordScore = Math.round((standing.winPercentage - 0.5) * 40);
-  const pdScore = Math.max(-8, Math.min(8, Math.round(standing.pointDifference / Math.max(1, standing.played * 2.5))));
-  const latestGameScore = latestUserGame ? (latestUserGame.winnerTeamId === selectedTeamId ? 4 : -5) : 0;
+      <article className="panel stat-panel">
+        <p className="eyebrow">Current Record</p>
+        <strong>{userStanding?.wins ?? 0}-{userStanding?.losses ?? 0}</strong>
+        <span className="muted">{userStanding?.played ? `After ${userStanding.played} game${userStanding.played === 1 ? '' : 's'}` : 'Season has not started'}</span>
+      </article>
 
-  return Math.max(40, Math.min(96, 68 + rankScore + recordScore + pdScore + latestGameScore));
+      <article className="panel stat-panel">
+        <p className="eyebrow">League Position</p>
+        <strong>{getOrdinalPosition(standings.findIndex((standing) => standing.teamId === selectedTeam.id) + 1)}</strong>
+        <span className="muted">{results.length ? 'Live standings' : 'Awaiting first game'}</span>
+      </article>
+
+      <article className="panel stat-panel">
+        <p className="eyebrow">Board Confidence</p>
+        <strong>{boardConfidence}%</strong>
+        <span className={userGameResult && !userWonLatestGame ? 'warning' : 'positive'}>
+          {userGameResult ? (userWonLatestGame ? 'Rising' : 'Watching closely') : 'Stable'}
+        </span>
+      </article>
+
+      <article className="panel wide-panel save-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Local Save</p>
+            <h3>Browser season save</h3>
+          </div>
+          <span className="chip">Auto-save</span>
+        </div>
+        <p className="muted">
+          {savedAt ? `Last saved ${new Date(savedAt).toLocaleString()}` : 'No saved season yet.'}
+        </p>
+        <button className="secondary-action danger-action" onClick={handleResetSeason}>Reset Local Season</button>
+      </article>
+
+      {latestResult && (
+        <article className="panel wide-panel result-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Latest Result</p>
+              <h3>{getTeam(latestResult.winnerTeamId).name} win</h3>
+            </div>
+            <span className="chip">{latestResult.matchupLabel}</span>
+          </div>
+          <div className="scoreboard-row">
+            <ScoreBlock team={getTeam(latestResult.homeTeamId).shortName} score={latestResult.homeScore} colour={getTeam(latestResult.homeTeamId).primaryColor} />
+            <span className="versus">—</span>
+            <ScoreBlock team={getTeam(latestResult.awayTeamId).shortName} score={latestResult.awayScore} colour={getTeam(latestResult.awayTeamId).primaryColor} />
+          </div>
+          <p className="muted">{latestResult.summary}</p>
+        </article>
+      )}
+
+      <article className="panel wide-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Top Players</p>
+            <h3>{latestResult ? 'Game Leaders' : 'Starting Core'}</h3>
+          </div>
+          <span className="chip">{latestResult ? 'Box Score' : selectedTeam.playStyle}</span>
+        </div>
+        <div className="player-list">
+          {(latestResult ? latestResult.topPerformers.slice(0, 3) : topPlayers).map((player) => (
+            'playerName' in player ? (
+              <div className="player-row" key={player.playerId}>
+                <div>
+                  <strong>{player.playerName}</strong>
+                  <span>{player.teamName} · {player.minutes ?? 0} MIN · {player.rebounds} REB · {player.assists} AST</span>
+                </div>
+                <div className="rating-pill">{player.points}</div>
+              </div>
+            ) : (
+              <div className="player-row" key={player.id}>
+                <div>
+                  <strong>{player.name}</strong>
+                  <span>{player.position} · {player.archetype}</span>
+                </div>
+                <div className="rating-pill">{player.overall}</div>
+              </div>
+            )
+          ))}
+        </div>
+      </article>
+
+      <article className="panel wide-panel league-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">League Table</p>
+            <h3>BSBL Standings</h3>
+          </div>
+          <span className="chip">{results.length}/{seasonFixtures.length} games played</span>
+        </div>
+        <div className="league-list">
+          {standings.map((standing, index) => (
+            <div className="league-row" key={standing.teamId}>
+              <span className="standings-rank">{index + 1}</span>
+              <span className="team-dot" style={{ background: standing.primaryColor }} />
+              <span>{standing.teamName}</span>
+              <span className="muted">{standing.wins}-{standing.losses}</span>
+              <strong>{standing.pointDifference > 0 ? `+${standing.pointDifference}` : standing.pointDifference}</strong>
+            </div>
+          ))}
+        </div>
+      </article>
+    </section>
+  );
 }
