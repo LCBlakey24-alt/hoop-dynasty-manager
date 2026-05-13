@@ -30,6 +30,36 @@ export function getContractRiskLabel(player: Player, team: Team) {
   return 'Stable';
 }
 
+export function createRenewedContract(player: Player, team: Team): PlayerContract {
+  const currentContract = getPlayerContract(player, team);
+  const renewalYears = player.age >= 32 ? 1 : player.role === 'Prospect' ? 3 : 2;
+  const demandMultiplier = player.overall >= 80
+    ? 1.18
+    : player.overall >= 76
+      ? 1.12
+      : player.potential - player.overall >= 10
+        ? 1.1
+        : 1.06;
+  const annualWage = Math.round(Math.max(currentContract.annualWage, calculateDefaultAnnualWage(player, team) * demandMultiplier) / 1000) * 1000;
+
+  return {
+    annualWage,
+    yearsRemaining: renewalYears,
+    status: player.role === 'Prospect' ? 'Youth Deal' : 'Secure',
+  };
+}
+
+export function renewPlayerContract(team: Team, playerId: string): Team {
+  return {
+    ...team,
+    roster: team.roster.map((player) => (
+      player.id === playerId
+        ? { ...player, contract: createRenewedContract(player, team), morale: Math.min(99, player.morale + 2) }
+        : player
+    )),
+  };
+}
+
 export function formatMoney(value: number) {
   const sign = value < 0 ? '-' : '';
   const absolute = Math.abs(value);
