@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import type { PlayerBoxScore, SimulatedGameResult } from '../game/simulateGame';
-import type { Team } from '../types/basketball';
+import type { PlayerConditionChange, Team } from '../types/basketball';
 
 type MatchResultScreenProps = {
+  latestConditionReport: PlayerConditionChange[];
   latestResult: SimulatedGameResult | null;
   results: SimulatedGameResult[];
   selectedTeamId: string;
   teams: Team[];
 };
 
-export function MatchResultScreen({ latestResult, results, selectedTeamId, teams }: MatchResultScreenProps) {
+export function MatchResultScreen({ latestConditionReport, latestResult, results, selectedTeamId, teams }: MatchResultScreenProps) {
   const [historyFilter, setHistoryFilter] = useState<'All' | 'My Team'>('My Team');
   const filteredHistory = useMemo(() => {
     const base = [...results].reverse();
@@ -103,6 +104,8 @@ export function MatchResultScreen({ latestResult, results, selectedTeamId, teams
         </article>
       </section>
 
+      <ConditionReportPanel conditionReport={latestConditionReport} />
+
       <section className="result-grid">
         <TeamBoxScorePanel boxScore={homeBoxScore} team={homeTeam} />
         <TeamBoxScorePanel boxScore={awayBoxScore} team={awayTeam} />
@@ -165,6 +168,50 @@ function ResultTeam({ align = 'left', score, team }: ResultTeamProps) {
       </div>
       <em>{score}</em>
     </div>
+  );
+}
+
+type ConditionReportPanelProps = {
+  conditionReport: PlayerConditionChange[];
+};
+
+function ConditionReportPanel({ conditionReport }: ConditionReportPanelProps) {
+  const notableReports = [...conditionReport]
+    .sort((a, b) => Number(Boolean(b.injury)) - Number(Boolean(a.injury)) || b.nextFatigue - a.nextFatigue)
+    .slice(0, 8);
+
+  return (
+    <article className="panel result-detail-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">Fitness & Injury Report</p>
+          <h3>Post-game condition</h3>
+        </div>
+        <span className="chip">{conditionReport.length ? `${conditionReport.length} players` : 'No report'}</span>
+      </div>
+
+      <div className="box-score-list full-box-score-list">
+        {notableReports.length > 0 ? notableReports.map((report) => (
+          <div className="box-score-row" key={report.playerId}>
+            <div>
+              <strong>{report.playerName}</strong>
+              <span>{report.note}</span>
+            </div>
+            <StatBlock label="MIN" value={report.minutes} />
+            <StatBlock label="FAT" value={report.nextFatigue} />
+            <StatBlock label="FORM" value={report.nextForm} />
+            <StatBlock label="MOR" value={report.nextMorale} />
+          </div>
+        )) : (
+          <div className="box-score-row">
+            <div>
+              <strong>No condition report yet</strong>
+              <span>Simulate one of your own games to generate player fatigue and injury notes.</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 
