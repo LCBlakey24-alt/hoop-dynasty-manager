@@ -39,6 +39,7 @@ export type Player = {
   form: number;
   fatigue?: number;
   injury?: PlayerInjury | null;
+  developmentProgress?: number;
 };
 
 export type Team = {
@@ -105,5 +106,17 @@ export type PlayerConditionChange = {
   nextForm: number;
   nextMorale: number;
   injury?: PlayerInjury | null;
+  note: string;
+};
+
+export type PlayerDevelopmentChange = {
+  playerId: string;
+  playerName: string;
+  minutes: number;
+  progressGain: number;
+  nextProgress: number;
+  overallBefore: number;
+  overallAfter: number;
+  potential: number;
   note: string;
 };
