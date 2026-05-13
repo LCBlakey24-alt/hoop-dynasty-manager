@@ -1,11 +1,12 @@
-import { formatMoney, getContractRiskLabel, getExpiringPlayers, getPlayerContract, getTeamAnnualWages } from '../game/contracts';
+import { createRenewedContract, formatMoney, getContractRiskLabel, getExpiringPlayers, getPlayerContract, getTeamAnnualWages } from '../game/contracts';
 import type { Player, Team } from '../types/basketball';
 
 type ContractsScreenProps = {
   team: Team;
+  onRenewContract: (playerId: string) => void;
 };
 
-export function ContractsScreen({ team }: ContractsScreenProps) {
+export function ContractsScreen({ team, onRenewContract }: ContractsScreenProps) {
   const annualWages = getTeamAnnualWages(team);
   const expiringPlayers = getExpiringPlayers(team);
   const highestPaid = [...team.roster].sort((a, b) => getPlayerContract(b, team).annualWage - getPlayerContract(a, team).annualWage)[0];
@@ -61,7 +62,7 @@ export function ContractsScreen({ team }: ContractsScreenProps) {
 
           <div className="box-score-list full-box-score-list">
             {expiringPlayers.length > 0 ? expiringPlayers.map((player) => (
-              <ContractRow compact player={player} team={team} key={player.id} />
+              <ContractRow compact onRenewContract={onRenewContract} player={player} team={team} key={player.id} />
             )) : (
               <div className="box-score-row">
                 <div>
@@ -85,7 +86,7 @@ export function ContractsScreen({ team }: ContractsScreenProps) {
 
         <div className="box-score-list full-box-score-list">
           {sortedRoster.map((player) => (
-            <ContractRow player={player} team={team} key={player.id} />
+            <ContractRow onRenewContract={onRenewContract} player={player} team={team} key={player.id} />
           ))}
         </div>
       </article>
@@ -103,19 +104,27 @@ function SummaryCard({ label, value, helper }: { label: string; value: string; h
   );
 }
 
-function ContractRow({ compact = false, player, team }: { compact?: boolean; player: Player; team: Team }) {
+function ContractRow({ compact = false, onRenewContract, player, team }: { compact?: boolean; onRenewContract: (playerId: string) => void; player: Player; team: Team }) {
   const contract = getPlayerContract(player, team);
+  const renewedContract = createRenewedContract(player, team);
   const risk = getContractRiskLabel(player, team);
+  const canRenew = contract.yearsRemaining <= 1;
 
   return (
     <div className="box-score-row">
       <div>
         <strong>{player.name}</strong>
         <span>{player.position} · {player.role} · {player.overall} OVR · {player.potential} POT</span>
+        {canRenew && <span>Renewal offer: {formatMoney(renewedContract.annualWage)} / {renewedContract.yearsRemaining} year{renewedContract.yearsRemaining === 1 ? '' : 's'}</span>}
       </div>
       <StatBlock label="WAGE" value={formatMoney(contract.annualWage)} />
       <StatBlock label="YRS" value={contract.yearsRemaining.toString()} />
       <StatBlock label={compact ? 'STATUS' : 'RISK'} value={compact ? contract.status : risk} />
+      {canRenew && (
+        <button className="option-button active" onClick={() => onRenewContract(player.id)}>
+          Renew
+        </button>
+      )}
     </div>
   );
 }
