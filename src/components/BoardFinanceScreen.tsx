@@ -1,3 +1,4 @@
+import { formatMoney, getTeamAnnualWages } from '../game/contracts';
 import type { Standing, Team } from '../types/basketball';
 
 type BoardFinanceScreenProps = {
@@ -76,7 +77,7 @@ export function BoardFinanceScreen({ boardConfidence, selectedTeam, standings, u
             <FinanceRow label="Projected Revenue" value={formatMoney(finance.projectedRevenue)} helper="Tickets, sponsorship and prize money estimate" />
             <FinanceRow label="Projected Costs" value={formatMoney(finance.projectedCosts)} helper="Wages, operations and academy costs estimate" />
             <FinanceRow label="Wage Budget" value={formatMoney(finance.wageBudget)} helper="Current board-approved wage ceiling" />
-            <FinanceRow label="Current Wages" value={formatMoney(finance.currentWages)} helper="Estimated squad wage spend" />
+            <FinanceRow label="Current Contract Wages" value={formatMoney(finance.currentWages)} helper="Calculated from player contracts" />
           </div>
         </article>
       </section>
@@ -144,7 +145,7 @@ function createFinanceSnapshot(team: Team, standing: Standing | undefined, leagu
   const tableBonus = leaguePosition > 0 ? Math.max(0, totalTeams - leaguePosition + 1) * 18000 : 0;
   const balance = Math.round(650000 + team.reputation * 12500 + titleBonus);
   const wageBudget = Math.round(240000 + team.reputation * 3900);
-  const currentWages = Math.round(team.roster.reduce((total, player) => total + player.overall * getRoleWageMultiplier(player.role), 0) * 62);
+  const currentWages = getTeamAnnualWages(team);
   const transferBudget = Math.round(Math.max(60000, balance * 0.16 + (standing?.wins ?? 0) * 4500));
   const projectedRevenue = Math.round(420000 + reputationFactor * 720000 + tableBonus + titleBonus);
   const projectedCosts = Math.round(currentWages + 320000 + team.roster.length * 12500);
@@ -221,21 +222,6 @@ function createBoardNotes(
   }
 
   return notes;
-}
-
-function getRoleWageMultiplier(role: Team['roster'][number]['role']) {
-  if (role === 'Starter') return 1.75;
-  if (role === 'Rotation') return 1.05;
-  if (role === 'Depth') return 0.58;
-  return 0.38;
-}
-
-function formatMoney(value: number) {
-  const sign = value < 0 ? '-' : '';
-  const absolute = Math.abs(value);
-
-  if (absolute >= 1000000) return `${sign}£${(absolute / 1000000).toFixed(1)}m`;
-  return `${sign}£${Math.round(absolute / 1000)}k`;
 }
 
 function getOrdinalPosition(position: number) {
