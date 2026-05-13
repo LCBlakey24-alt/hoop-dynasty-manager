@@ -16,13 +16,14 @@ import { teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
 import { applyPostGameCondition } from './game/playerCondition';
+import { applyPostGameDevelopment } from './game/playerDevelopment';
 import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { createDefaultRotation, normaliseRotation } from './game/rotation';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
-import type { Fixture, PlayerConditionChange, RotationPlan, Team } from './types/basketball';
+import type { Fixture, PlayerConditionChange, PlayerDevelopmentChange, RotationPlan, Team } from './types/basketball';
 
 type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 
@@ -58,6 +59,7 @@ export function App() {
   const [selectedTeamState, setSelectedTeamState] = useState<Team>(initialSelectedTeam);
   const [rotationPlan, setRotationPlan] = useState<RotationPlan>(initialRotation);
   const [latestConditionReport, setLatestConditionReport] = useState<PlayerConditionChange[]>(initialSave?.latestConditionReport ?? []);
+  const [latestDevelopmentReport, setLatestDevelopmentReport] = useState<PlayerDevelopmentChange[]>(initialSave?.latestDevelopmentReport ?? []);
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
@@ -71,9 +73,9 @@ export function App() {
   const hasSave = Boolean(initialSave) || results.length > 0 || playoffResults.length > 0;
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport);
+    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport);
     setSavedAt(save.savedAt);
-  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport]);
+  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport]);
 
   const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
   const standings = calculateStandings(effectiveTeams, results);
@@ -98,6 +100,7 @@ export function App() {
     setSelectedTeamState(freshTeam);
     setRotationPlan(createDefaultRotation(freshTeam));
     setLatestConditionReport([]);
+    setLatestDevelopmentReport([]);
   }
 
   function handleResetSeason() {
@@ -127,6 +130,7 @@ export function App() {
     setSelectedTeamState(freshTeam);
     setRotationPlan(createDefaultRotation(freshTeam));
     setLatestConditionReport([]);
+    setLatestDevelopmentReport([]);
     setResults([]);
     setPlayoffResults([]);
     setTactics(defaultTactics);
@@ -152,10 +156,11 @@ export function App() {
       awayRotation: awayIsUser ? rotation : null,
     });
 
-    if (!homeIsUser && !awayIsUser) return { result, managedTeam, conditionReport: latestConditionReport };
+    if (!homeIsUser && !awayIsUser) return { result, managedTeam, conditionReport: latestConditionReport, developmentReport: latestDevelopmentReport };
 
     const condition = applyPostGameCondition(managedTeam, rotation, trainingFocus);
-    return { result, managedTeam: condition.team, conditionReport: condition.changes };
+    const development = applyPostGameDevelopment(condition.team, rotation);
+    return { result, managedTeam: development.team, conditionReport: condition.changes, developmentReport: development.changes };
   }
 
   function handleSimulateNextFixture() {
@@ -167,6 +172,7 @@ export function App() {
       const simulation = simulateFixtureWithManagedState(nextFixture, selectedTeam);
       setSelectedTeamState(simulation.managedTeam);
       setLatestConditionReport(simulation.conditionReport);
+      setLatestDevelopmentReport(simulation.developmentReport);
       return [...currentResults, simulation.result];
     });
   }
@@ -175,17 +181,20 @@ export function App() {
     setResults((currentResults) => {
       let managedTeam = selectedTeam;
       let conditionReport = latestConditionReport;
+      let developmentReport = latestDevelopmentReport;
       const newResults = currentRoundFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
         .map((fixture) => {
           const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
           managedTeam = simulation.managedTeam;
           conditionReport = simulation.conditionReport;
+          developmentReport = simulation.developmentReport;
           return simulation.result;
         });
 
       setSelectedTeamState(managedTeam);
       setLatestConditionReport(conditionReport);
+      setLatestDevelopmentReport(developmentReport);
       return [...currentResults, ...newResults];
     });
   }
@@ -194,17 +203,20 @@ export function App() {
     setResults((currentResults) => {
       let managedTeam = selectedTeam;
       let conditionReport = latestConditionReport;
+      let developmentReport = latestDevelopmentReport;
       const newResults = seasonFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
         .map((fixture) => {
           const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
           managedTeam = simulation.managedTeam;
           conditionReport = simulation.conditionReport;
+          developmentReport = simulation.developmentReport;
           return simulation.result;
         });
 
       setSelectedTeamState(managedTeam);
       setLatestConditionReport(conditionReport);
+      setLatestDevelopmentReport(developmentReport);
       return [...currentResults, ...newResults];
     });
   }
@@ -326,6 +338,7 @@ export function App() {
           <InboxScreen
             boardConfidence={boardConfidence}
             latestConditionReport={latestConditionReport}
+            latestDevelopmentReport={latestDevelopmentReport}
             latestResult={latestResult}
             nextAwayTeam={nextAwayTeam}
             nextHomeTeam={nextHomeTeam}
