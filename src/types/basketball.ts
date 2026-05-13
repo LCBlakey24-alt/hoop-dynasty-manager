@@ -18,6 +18,14 @@ export type PlayerArchetype =
   | 'Veteran Leader'
   | 'Raw Prospect';
 
+export type InjurySeverity = 'Knock' | 'Minor' | 'Major';
+
+export type PlayerInjury = {
+  type: string;
+  severity: InjurySeverity;
+  gamesRemaining: number;
+};
+
 export type Player = {
   id: string;
   name: string;
@@ -30,6 +38,7 @@ export type Player = {
   morale: number;
   form: number;
   fatigue?: number;
+  injury?: PlayerInjury | null;
 };
 
 export type Team = {
@@ -95,5 +104,6 @@ export type PlayerConditionChange = {
   nextFatigue: number;
   nextForm: number;
   nextMorale: number;
+  injury?: PlayerInjury | null;
   note: string;
 };

@@ -21,7 +21,7 @@ import { createDefaultRotation, normaliseRotation } from './game/rotation';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
-import type { Fixture, RotationPlan, Team } from './types/basketball';
+import type { Fixture, PlayerConditionChange, RotationPlan, Team } from './types/basketball';
 
 type ActiveView = 'Landing' | 'Dashboard' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 
@@ -55,6 +55,7 @@ export function App() {
   const [selectedTeamId, setSelectedTeamId] = useState(initialTeamId);
   const [selectedTeamState, setSelectedTeamState] = useState<Team>(initialSelectedTeam);
   const [rotationPlan, setRotationPlan] = useState<RotationPlan>(initialRotation);
+  const [latestConditionReport, setLatestConditionReport] = useState<PlayerConditionChange[]>(initialSave?.latestConditionReport ?? []);
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
@@ -68,9 +69,9 @@ export function App() {
   const hasSave = Boolean(initialSave) || results.length > 0 || playoffResults.length > 0;
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam);
+    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport);
     setSavedAt(save.savedAt);
-  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam]);
+  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport]);
 
   const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
   const standings = calculateStandings(effectiveTeams, results);
@@ -94,6 +95,7 @@ export function App() {
     const freshTeam = getTeam(teamId);
     setSelectedTeamState(freshTeam);
     setRotationPlan(createDefaultRotation(freshTeam));
+    setLatestConditionReport([]);
   }
 
   function handleResetSeason() {
@@ -122,6 +124,7 @@ export function App() {
     setSelectedTeamId(teamId);
     setSelectedTeamState(freshTeam);
     setRotationPlan(createDefaultRotation(freshTeam));
+    setLatestConditionReport([]);
     setResults([]);
     setPlayoffResults([]);
     setTactics(defaultTactics);
@@ -147,10 +150,10 @@ export function App() {
       awayRotation: awayIsUser ? rotation : null,
     });
 
-    if (!homeIsUser && !awayIsUser) return { result, managedTeam };
+    if (!homeIsUser && !awayIsUser) return { result, managedTeam, conditionReport: latestConditionReport };
 
     const condition = applyPostGameCondition(managedTeam, rotation, trainingFocus);
-    return { result, managedTeam: condition.team };
+    return { result, managedTeam: condition.team, conditionReport: condition.changes };
   }
 
   function handleSimulateNextFixture() {
@@ -161,6 +164,7 @@ export function App() {
 
       const simulation = simulateFixtureWithManagedState(nextFixture, selectedTeam);
       setSelectedTeamState(simulation.managedTeam);
+      setLatestConditionReport(simulation.conditionReport);
       return [...currentResults, simulation.result];
     });
   }
@@ -168,15 +172,18 @@ export function App() {
   function handleSimulateCurrentRound() {
     setResults((currentResults) => {
       let managedTeam = selectedTeam;
+      let conditionReport = latestConditionReport;
       const newResults = currentRoundFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
         .map((fixture) => {
           const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
           managedTeam = simulation.managedTeam;
+          conditionReport = simulation.conditionReport;
           return simulation.result;
         });
 
       setSelectedTeamState(managedTeam);
+      setLatestConditionReport(conditionReport);
       return [...currentResults, ...newResults];
     });
   }
@@ -184,15 +191,18 @@ export function App() {
   function handleSimulateRestOfSeason() {
     setResults((currentResults) => {
       let managedTeam = selectedTeam;
+      let conditionReport = latestConditionReport;
       const newResults = seasonFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
         .map((fixture) => {
           const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
           managedTeam = simulation.managedTeam;
+          conditionReport = simulation.conditionReport;
           return simulation.result;
         });
 
       setSelectedTeamState(managedTeam);
+      setLatestConditionReport(conditionReport);
       return [...currentResults, ...newResults];
     });
   }
@@ -331,7 +341,15 @@ export function App() {
             totalRounds={totalRounds}
           />
         )}
-        {activeView === 'Results' && <MatchResultScreen latestResult={latestResult} results={results} selectedTeamId={selectedTeam.id} teams={effectiveTeams} />}
+        {activeView === 'Results' && (
+          <MatchResultScreen
+            latestConditionReport={latestConditionReport}
+            latestResult={latestResult}
+            results={results}
+            selectedTeamId={selectedTeam.id}
+            teams={effectiveTeams}
+          />
+        )}
         {activeView === 'League' && (
           <LeagueScreen
             gamesPlayed={results.length}

@@ -162,7 +162,7 @@ function calculateTeamStrength(team: Team, rotation: RotationPlan | null = null)
   const activePlayers = rotation
     ? team.roster.filter((player) => (getRotationEntry(rotation, player.id)?.minutes ?? 0) > 0)
     : team.roster;
-  const rosterAverage = average(activePlayers.map((player) => player.overall));
+  const rosterAverage = average(activePlayers.map((player) => getEffectiveOverall(player)));
   const moraleAverage = average(activePlayers.map((player) => player.morale));
   const formAverage = average(activePlayers.map((player) => player.form));
   const fatigueAverage = average(activePlayers.map((player) => player.fatigue ?? 0));
@@ -246,7 +246,7 @@ function createTeamBoxScore(
     const bigBoost = ['PF', 'C'].includes(player.position) ? modifier.bigUsageBonus : 0;
     const fatiguePenalty = (player.fatigue ?? 0) * 0.12;
 
-    return Math.max(0, minutes * (player.overall + player.form * 0.25 + starBoost + guardBoost + bigBoost - fatiguePenalty + randomBetween(-8, 8, rng)));
+    return Math.max(0, minutes * (getEffectiveOverall(player) + player.form * 0.25 + starBoost + guardBoost + bigBoost - fatiguePenalty + randomBetween(-8, 8, rng)));
   });
   const totalWeight = usageWeights.reduce((total, weight) => total + weight, 0) || 1;
 
@@ -254,6 +254,7 @@ function createTeamBoxScore(
     const minutes = normalisedRotation ? getRotationEntry(normalisedRotation, player.id)?.minutes ?? 0 : getDefaultMinutes(player);
     const share = usageWeights[index] / totalWeight;
     const points = minutes <= 0 ? 0 : Math.max(0, Math.round(teamScore * share + randomBetween(-3, 5, rng)));
+    const injuryMultiplier = player.injury ? 0.86 : 1;
 
     return {
       playerId: player.id,
@@ -262,8 +263,8 @@ function createTeamBoxScore(
       teamName: team.name,
       minutes,
       points,
-      rebounds: minutes <= 0 ? 0 : Math.max(0, Math.round((createRebounds(player, rng) + modifier.reboundBonus) * minutes / 28)),
-      assists: minutes <= 0 ? 0 : Math.max(0, Math.round((createAssists(player, rng) + modifier.assistBonus) * minutes / 28)),
+      rebounds: minutes <= 0 ? 0 : Math.max(0, Math.round((createRebounds(player, rng) + modifier.reboundBonus) * minutes / 28 * injuryMultiplier)),
+      assists: minutes <= 0 ? 0 : Math.max(0, Math.round((createAssists(player, rng) + modifier.assistBonus) * minutes / 28 * injuryMultiplier)),
     };
   }).filter((player) => player.minutes > 0 || player.points > 0);
 }
@@ -273,6 +274,18 @@ function getDefaultMinutes(player: Player) {
   if (player.role === 'Rotation') return 18;
   if (player.role === 'Depth') return 7;
   return 4;
+}
+
+function getEffectiveOverall(player: Player) {
+  const injuryPenalty = player.injury?.severity === 'Major'
+    ? 12
+    : player.injury?.severity === 'Minor'
+      ? 7
+      : player.injury?.severity === 'Knock'
+        ? 3
+        : 0;
+
+  return Math.max(35, player.overall - injuryPenalty);
 }
 
 function getTeamBestOverall(team: Team) {
