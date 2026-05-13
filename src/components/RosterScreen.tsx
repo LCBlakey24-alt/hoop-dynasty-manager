@@ -1,4 +1,5 @@
 import { getTeamProfile } from '../data/teamProfiles';
+import { derivePlayerAttributes, getAttributeLabel, type AttributeKey } from '../game/playerAttributes';
 import type { Player, PlayerRole, Team } from '../types/basketball';
 
 type RosterScreenProps = {
@@ -12,6 +13,8 @@ const roleOrder: Record<PlayerRole, number> = {
   Prospect: 4,
 };
 
+const featuredAttributes: AttributeKey[] = ['shooting', 'finishing', 'passing', 'rebounding', 'perimeterDefence', 'basketballIq'];
+
 export function RosterScreen({ team }: RosterScreenProps) {
   const profile = getTeamProfile(team.id);
   const sortedRoster = [...team.roster].sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || b.overall - a.overall);
@@ -20,6 +23,7 @@ export function RosterScreen({ team }: RosterScreenProps) {
   const bestProspect = [...team.roster].sort((a, b) => b.potential - a.potential)[0];
   const squadLeader = [...team.roster].sort((a, b) => b.overall - a.overall)[0];
   const starters = team.roster.filter((player) => player.role === 'Starter').length;
+  const attributeLeaders = featuredAttributes.map((attribute) => getAttributeLeader(team.roster, attribute));
 
   return (
     <section className="roster-screen">
@@ -38,6 +42,27 @@ export function RosterScreen({ team }: RosterScreenProps) {
         <SummaryCard label="Squad Leader" value={squadLeader.name} helper={`${squadLeader.overall} OVR · ${squadLeader.position}`} />
         <SummaryCard label="Top Prospect" value={bestProspect.name} helper={`${bestProspect.potential} POT · Age ${bestProspect.age}`} />
       </section>
+
+      <article className="panel roster-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Attribute Leaders</p>
+            <h3>Squad strengths</h3>
+          </div>
+          <span className="chip">Derived ratings</span>
+        </div>
+
+        <div className="attribute-leader-grid">
+          {attributeLeaders.map((leader) => (
+            <div className="attribute-leader-card" key={leader.attribute}>
+              <p className="eyebrow">{getAttributeLabel(leader.attribute)}</p>
+              <strong>{leader.player.name}</strong>
+              <span>{leader.player.position} · {leader.player.archetype}</span>
+              <em>{leader.value}</em>
+            </div>
+          ))}
+        </div>
+      </article>
 
       <article className="panel roster-panel">
         <div className="panel-header">
@@ -169,6 +194,12 @@ function Meter({ value }: MeterProps) {
       <span>{value}</span>
     </div>
   );
+}
+
+function getAttributeLeader(players: Player[], attribute: AttributeKey) {
+  return players
+    .map((player) => ({ player, value: derivePlayerAttributes(player)[attribute], attribute }))
+    .sort((a, b) => b.value - a.value)[0];
 }
 
 function average(values: number[]) {
