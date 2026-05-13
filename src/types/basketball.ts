@@ -29,6 +29,7 @@ export type Player = {
   potential: number;
   morale: number;
   form: number;
+  fatigue?: number;
 };
 
 export type Team = {
@@ -73,4 +74,26 @@ export type Standing = {
   pointsAgainst: number;
   pointDifference: number;
   winPercentage: number;
+};
+
+export type RotationEntry = {
+  playerId: string;
+  minutes: number;
+  isStarter: boolean;
+  benchOrder: number;
+};
+
+export type RotationPlan = RotationEntry[];
+
+export type PlayerConditionChange = {
+  playerId: string;
+  playerName: string;
+  minutes: number;
+  fatigueChange: number;
+  formChange: number;
+  moraleChange: number;
+  nextFatigue: number;
+  nextForm: number;
+  nextMorale: number;
+  note: string;
 };
