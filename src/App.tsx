@@ -17,6 +17,7 @@ import { TrainingScreen, type TrainingFocus } from './components/TrainingScreen'
 import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
+import { renewPlayerContract } from './game/contracts';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
 import { applyPostGameCondition } from './game/playerCondition';
 import { applyPostGameDevelopment } from './game/playerDevelopment';
@@ -143,6 +144,10 @@ export function App() {
     setSavedAt(null);
     setTrainingFocus('Balanced');
     setActiveView('Dashboard');
+  }
+
+  function handleRenewContract(playerId: string) {
+    setSelectedTeamState((currentTeam) => renewPlayerContract(currentTeam, playerId));
   }
 
   function simulateFixtureWithManagedState(fixture: Fixture, managedTeam: Team) {
@@ -357,7 +362,7 @@ export function App() {
         {activeView === 'Team Select' && <TeamSelectScreen selectedTeamId={selectedTeam.id} teams={effectiveTeams} onSelectTeam={handleSelectTeam} />}
         {activeView === 'Roster' && <RosterScreen team={selectedTeam} />}
         {activeView === 'Development' && <DevelopmentScreen latestDevelopmentReport={latestDevelopmentReport} team={selectedTeam} />}
-        {activeView === 'Contracts' && <ContractsScreen team={selectedTeam} />}
+        {activeView === 'Contracts' && <ContractsScreen team={selectedTeam} onRenewContract={handleRenewContract} />}
         {activeView === 'Board & Finance' && <BoardFinanceScreen boardConfidence={boardConfidence} selectedTeam={selectedTeam} standings={standings} userStanding={userStanding} />}
         {activeView === 'Tactics' && (
           <TacticsScreen
