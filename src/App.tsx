@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Activity, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, Shield, Trophy, TrendingUp, Users } from 'lucide-react';
+import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, Shield, Trophy, TrendingUp, Users } from 'lucide-react';
+import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { DevelopmentScreen } from './components/DevelopmentScreen';
 import { InboxScreen } from './components/InboxScreen';
 import { LandingScreen } from './components/LandingScreen';
@@ -26,7 +27,7 @@ import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, PlayerConditionChange, PlayerDevelopmentChange, RotationPlan, Team } from './types/basketball';
 
-type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
+type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Board & Finance' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -34,6 +35,7 @@ const navItems = [
   { label: 'Team Select', icon: Users, enabled: true },
   { label: 'Roster', icon: Users, enabled: true },
   { label: 'Development', icon: TrendingUp, enabled: true },
+  { label: 'Board & Finance', icon: Banknote, enabled: true },
   { label: 'Tactics', icon: Shield, enabled: true },
   { label: 'Schedule', icon: CalendarDays, enabled: true },
   { label: 'Results', icon: ClipboardList, enabled: true },
@@ -353,6 +355,7 @@ export function App() {
         {activeView === 'Team Select' && <TeamSelectScreen selectedTeamId={selectedTeam.id} teams={effectiveTeams} onSelectTeam={handleSelectTeam} />}
         {activeView === 'Roster' && <RosterScreen team={selectedTeam} />}
         {activeView === 'Development' && <DevelopmentScreen latestDevelopmentReport={latestDevelopmentReport} team={selectedTeam} />}
+        {activeView === 'Board & Finance' && <BoardFinanceScreen boardConfidence={boardConfidence} selectedTeam={selectedTeam} standings={standings} userStanding={userStanding} />}
         {activeView === 'Tactics' && (
           <TacticsScreen
             team={selectedTeam}
