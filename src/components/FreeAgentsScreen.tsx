@@ -4,13 +4,15 @@ import { formatMoney } from '../game/contracts';
 import type { Player, Team } from '../types/basketball';
 
 type FreeAgentsScreenProps = {
+  releasedPlayers: Player[];
   signedFreeAgentIds: string[];
   team: Team;
   onSignFreeAgent: (player: Player) => void;
 };
 
-export function FreeAgentsScreen({ signedFreeAgentIds, team, onSignFreeAgent }: FreeAgentsScreenProps) {
-  const availableFreeAgents = freeAgents.filter((player) => !signedFreeAgentIds.includes(player.id));
+export function FreeAgentsScreen({ releasedPlayers, signedFreeAgentIds, team, onSignFreeAgent }: FreeAgentsScreenProps) {
+  const market = dedupePlayers([...freeAgents, ...releasedPlayers]);
+  const availableFreeAgents = market.filter((player) => !signedFreeAgentIds.includes(player.id) && !team.roster.some((candidate) => candidate.id === player.id));
   const bestOverall = [...availableFreeAgents].sort((a, b) => b.overall - a.overall)[0];
   const bestProspect = [...availableFreeAgents].sort((a, b) => b.potential - a.potential)[0];
   const interestedCount = availableFreeAgents.filter((player) => getFreeAgentInterest(player, team) !== 'Unlikely').length;
@@ -40,12 +42,12 @@ export function FreeAgentsScreen({ signedFreeAgentIds, team, onSignFreeAgent }: 
             <p className="eyebrow">Market</p>
             <h3>Free agent pool</h3>
           </div>
-          <span className="chip">Board approval active</span>
+          <span className="chip">{releasedPlayers.length ? `${releasedPlayers.length} released` : 'Board approval active'}</span>
         </div>
 
         <div className="box-score-list full-box-score-list">
           {availableFreeAgents.map((player) => (
-            <FreeAgentRow key={player.id} player={player} team={team} onSignFreeAgent={onSignFreeAgent} />
+            <FreeAgentRow key={player.id} player={player} team={team} onSignFreeAgent={onSignFreeAgent} isReleasedPlayer={releasedPlayers.some((released) => released.id === player.id)} />
           ))}
           {availableFreeAgents.length === 0 && (
             <div className="box-score-row">
@@ -61,7 +63,7 @@ export function FreeAgentsScreen({ signedFreeAgentIds, team, onSignFreeAgent }: 
   );
 }
 
-function FreeAgentRow({ player, team, onSignFreeAgent }: { player: Player; team: Team; onSignFreeAgent: (player: Player) => void }) {
+function FreeAgentRow({ isReleasedPlayer, player, team, onSignFreeAgent }: { isReleasedPlayer: boolean; player: Player; team: Team; onSignFreeAgent: (player: Player) => void }) {
   const contract = createFreeAgentContract(player, team);
   const approval = canSignFreeAgent(player, team);
   const interest = getFreeAgentInterest(player, team);
@@ -70,7 +72,7 @@ function FreeAgentRow({ player, team, onSignFreeAgent }: { player: Player; team:
     <div className="box-score-row">
       <div>
         <strong>{player.name}</strong>
-        <span>{player.age} · {player.position} · {player.archetype} · {getFreeAgentFitLabel(player, team)}</span>
+        <span>{player.age} · {player.position} · {player.archetype} · {getFreeAgentFitLabel(player, team)}{isReleasedPlayer ? ' · Recently released' : ''}</span>
         <span>{approval.reason} · Projected wages: {formatMoney(approval.projectedWages)} / {formatMoney(approval.wageBudget)}</span>
       </div>
       <StatBlock label="OVR" value={player.overall.toString()} />
@@ -101,4 +103,13 @@ function StatBlock({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
     </div>
   );
+}
+
+function dedupePlayers(players: Player[]) {
+  const seenIds = new Set<string>();
+  return players.filter((player) => {
+    if (seenIds.has(player.id)) return false;
+    seenIds.add(player.id);
+    return true;
+  });
 }
