@@ -14,12 +14,14 @@ import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
+import { applyPostGameCondition } from './game/playerCondition';
 import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
+import { createDefaultRotation, normaliseRotation } from './game/rotation';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
-import type { Fixture, Team } from './types/basketball';
+import type { Fixture, RotationPlan, Team } from './types/basketball';
 
 type ActiveView = 'Landing' | 'Dashboard' | 'Team Select' | 'Roster' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 
@@ -40,29 +42,38 @@ const navItems = [
 const DEFAULT_TEAM_ID = 'bristol-breakers';
 const totalRounds = Math.max(...seasonFixtures.map((fixture) => fixture.round));
 const initialSave = typeof window === 'undefined' ? null : loadLocalSeasonSave();
+const initialTeamId = initialSave?.selectedTeamId ?? DEFAULT_TEAM_ID;
+const initialSelectedTeam = initialSave?.selectedTeamState?.id === initialTeamId
+  ? initialSave.selectedTeamState
+  : getTeam(initialTeamId);
+const initialRotation = normaliseRotation(initialSelectedTeam, initialSave?.rotationPlan ?? createDefaultRotation(initialSelectedTeam));
 
 export function App() {
   const [activeView, setActiveView] = useState<ActiveView>('Landing');
   const [results, setResults] = useState<SimulatedGameResult[]>(initialSave?.results ?? []);
   const [playoffResults, setPlayoffResults] = useState<SimulatedGameResult[]>(initialSave?.playoffResults ?? []);
-  const [selectedTeamId, setSelectedTeamId] = useState(initialSave?.selectedTeamId ?? DEFAULT_TEAM_ID);
+  const [selectedTeamId, setSelectedTeamId] = useState(initialTeamId);
+  const [selectedTeamState, setSelectedTeamState] = useState<Team>(initialSelectedTeam);
+  const [rotationPlan, setRotationPlan] = useState<RotationPlan>(initialRotation);
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
 
-  const selectedTeam = getTeam(selectedTeamId);
+  const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
+  const rotation = normaliseRotation(selectedTeam, rotationPlan);
+  const effectiveTeams = mergeTeamState(teams, selectedTeam);
   const topPlayers = [...selectedTeam.roster]
     .sort((a, b) => b.overall - a.overall)
     .slice(0, 3);
   const hasSave = Boolean(initialSave) || results.length > 0 || playoffResults.length > 0;
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus);
+    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam);
     setSavedAt(save.savedAt);
-  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus]);
+  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam]);
 
   const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
-  const standings = calculateStandings(teams, results);
+  const standings = calculateStandings(effectiveTeams, results);
   const userStanding = standings.find((standing) => standing.teamId === selectedTeam.id);
   const nextFixture = seasonFixtures.find((fixture) => !hasResultForFixture(fixture, results));
   const currentRound = nextFixture?.round ?? totalRounds;
@@ -70,14 +81,20 @@ export function App() {
   const userGameResult = [...results].reverse().find((result) => result.homeTeamId === selectedTeam.id || result.awayTeamId === selectedTeam.id) ?? null;
   const userWonLatestGame = userGameResult?.winnerTeamId === selectedTeam.id;
   const boardConfidence = calculateBoardConfidence({ standings, selectedTeamId: selectedTeam.id, latestUserGame: userGameResult });
-  const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId) : null;
-  const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId) : null;
+  const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId, effectiveTeams) : null;
+  const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId, effectiveTeams) : null;
   const nextMatchupLabel = nextHomeTeam && nextAwayTeam
     ? calculateWinProbability(nextHomeTeam, nextAwayTeam, {
       homeTactics: nextHomeTeam.id === selectedTeam.id ? tactics : defaultTactics,
       awayTactics: nextAwayTeam.id === selectedTeam.id ? tactics : defaultTactics,
     }).matchupLabel
     : null;
+
+  function resetManagedState(teamId = selectedTeamId) {
+    const freshTeam = getTeam(teamId);
+    setSelectedTeamState(freshTeam);
+    setRotationPlan(createDefaultRotation(freshTeam));
+  }
 
   function handleResetSeason() {
     clearLocalSeasonSave();
@@ -86,6 +103,7 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    resetManagedState();
   }
 
   function handleStartNewFranchise() {
@@ -95,11 +113,15 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    resetManagedState();
     setActiveView('Team Select');
   }
 
   function handleSelectTeam(teamId: string) {
+    const freshTeam = getTeam(teamId);
     setSelectedTeamId(teamId);
+    setSelectedTeamState(freshTeam);
+    setRotationPlan(createDefaultRotation(freshTeam));
     setResults([]);
     setPlayoffResults([]);
     setTactics(defaultTactics);
@@ -108,32 +130,69 @@ export function App() {
     setActiveView('Dashboard');
   }
 
+  function simulateFixtureWithManagedState(fixture: Fixture, managedTeam: Team) {
+    const localTeams = mergeTeamState(teams, managedTeam);
+    const homeTeam = getTeam(fixture.homeTeamId, localTeams);
+    const awayTeam = getTeam(fixture.awayTeamId, localTeams);
+    const homeIsUser = homeTeam.id === selectedTeam.id;
+    const awayIsUser = awayTeam.id === selectedTeam.id;
+    const homeTactics = homeIsUser ? tactics : defaultTactics;
+    const awayTactics = awayIsUser ? tactics : defaultTactics;
+    const adjustedHome = homeIsUser ? applyTrainingFocus(homeTeam, trainingFocus) : homeTeam;
+    const adjustedAway = awayIsUser ? applyTrainingFocus(awayTeam, trainingFocus) : awayTeam;
+    const result = simulateGame(adjustedHome, adjustedAway, {
+      homeTactics,
+      awayTactics,
+      homeRotation: homeIsUser ? rotation : null,
+      awayRotation: awayIsUser ? rotation : null,
+    });
+
+    if (!homeIsUser && !awayIsUser) return { result, managedTeam };
+
+    const condition = applyPostGameCondition(managedTeam, rotation, trainingFocus);
+    return { result, managedTeam: condition.team };
+  }
+
   function handleSimulateNextFixture() {
     if (!nextFixture) return;
 
     setResults((currentResults) => {
       if (hasResultForFixture(nextFixture, currentResults)) return currentResults;
 
-      return [...currentResults, simulateFixture(nextFixture, tactics, selectedTeam.id, trainingFocus)];
+      const simulation = simulateFixtureWithManagedState(nextFixture, selectedTeam);
+      setSelectedTeamState(simulation.managedTeam);
+      return [...currentResults, simulation.result];
     });
   }
 
   function handleSimulateCurrentRound() {
     setResults((currentResults) => {
+      let managedTeam = selectedTeam;
       const newResults = currentRoundFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
-        .map((fixture) => simulateFixture(fixture, tactics, selectedTeam.id, trainingFocus));
+        .map((fixture) => {
+          const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
+          managedTeam = simulation.managedTeam;
+          return simulation.result;
+        });
 
+      setSelectedTeamState(managedTeam);
       return [...currentResults, ...newResults];
     });
   }
 
   function handleSimulateRestOfSeason() {
     setResults((currentResults) => {
+      let managedTeam = selectedTeam;
       const newResults = seasonFixtures
         .filter((fixture) => !hasResultForFixture(fixture, currentResults))
-        .map((fixture) => simulateFixture(fixture, tactics, selectedTeam.id, trainingFocus));
+        .map((fixture) => {
+          const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
+          managedTeam = simulation.managedTeam;
+          return simulation.result;
+        });
 
+      setSelectedTeamState(managedTeam);
       return [...currentResults, ...newResults];
     });
   }
@@ -143,11 +202,13 @@ export function App() {
       const newResults = matchups
         .filter((matchup) => !currentResults.some((result) => result.homeTeamId === matchup.homeSeed.standing.teamId && result.awayTeamId === matchup.awaySeed.standing.teamId))
         .map((matchup) => simulateGame(
-          getTeam(matchup.homeSeed.standing.teamId),
-          getTeam(matchup.awaySeed.standing.teamId),
+          getTeam(matchup.homeSeed.standing.teamId, effectiveTeams),
+          getTeam(matchup.awaySeed.standing.teamId, effectiveTeams),
           {
             homeTactics: matchup.homeSeed.standing.teamId === selectedTeam.id ? tactics : defaultTactics,
             awayTactics: matchup.awaySeed.standing.teamId === selectedTeam.id ? tactics : defaultTactics,
+            homeRotation: matchup.homeSeed.standing.teamId === selectedTeam.id ? rotation : null,
+            awayRotation: matchup.awaySeed.standing.teamId === selectedTeam.id ? rotation : null,
           },
         ));
 
@@ -250,19 +311,27 @@ export function App() {
           />
         )}
 
-        {activeView === 'Team Select' && <TeamSelectScreen selectedTeamId={selectedTeam.id} teams={teams} onSelectTeam={handleSelectTeam} />}
+        {activeView === 'Team Select' && <TeamSelectScreen selectedTeamId={selectedTeam.id} teams={effectiveTeams} onSelectTeam={handleSelectTeam} />}
         {activeView === 'Roster' && <RosterScreen team={selectedTeam} />}
-        {activeView === 'Tactics' && <TacticsScreen team={selectedTeam} tactics={tactics} onTacticsChange={setTactics} />}
+        {activeView === 'Tactics' && (
+          <TacticsScreen
+            team={selectedTeam}
+            tactics={tactics}
+            rotationPlan={rotation}
+            onRotationChange={setRotationPlan}
+            onTacticsChange={setTactics}
+          />
+        )}
         {activeView === 'Schedule' && (
           <ScheduleScreen
             currentRound={currentRound}
             fixtures={seasonFixtures}
             results={results}
-            teams={teams}
+            teams={effectiveTeams}
             totalRounds={totalRounds}
           />
         )}
-        {activeView === 'Results' && <MatchResultScreen latestResult={latestResult} results={results} selectedTeamId={selectedTeam.id} teams={teams} />}
+        {activeView === 'Results' && <MatchResultScreen latestResult={latestResult} results={results} selectedTeamId={selectedTeam.id} teams={effectiveTeams} />}
         {activeView === 'League' && (
           <LeagueScreen
             gamesPlayed={results.length}
@@ -289,7 +358,7 @@ export function App() {
             gamesPlayed={results.length}
             playoffResults={playoffResults}
             standings={standings}
-            teams={teams}
+            teams={effectiveTeams}
             totalGames={seasonFixtures.length}
             userTeamId={selectedTeam.id}
           />
@@ -299,15 +368,8 @@ export function App() {
   );
 }
 
-function simulateFixture(fixture: Fixture, tactics: TacticalSettings, selectedTeamId: string, trainingFocus: TrainingFocus) {
-  const homeTeam = getTeam(fixture.homeTeamId);
-  const awayTeam = getTeam(fixture.awayTeamId);
-  const homeTactics = homeTeam.id === selectedTeamId ? tactics : defaultTactics;
-  const awayTactics = awayTeam.id === selectedTeamId ? tactics : defaultTactics;
-  const adjustedHome = homeTeam.id === selectedTeamId ? applyTrainingFocus(homeTeam, trainingFocus) : homeTeam;
-  const adjustedAway = awayTeam.id === selectedTeamId ? applyTrainingFocus(awayTeam, trainingFocus) : awayTeam;
-
-  return simulateGame(adjustedHome, adjustedAway, { homeTactics, awayTactics });
+function mergeTeamState(teamList: Team[], managedTeam: Team) {
+  return teamList.map((team) => (team.id === managedTeam.id ? managedTeam : team));
 }
 
 function TeamMini({ name, colour }: { name: string; colour: string }) {
@@ -469,7 +531,7 @@ function DashboardView({
               <div className="player-row" key={player.playerId}>
                 <div>
                   <strong>{player.playerName}</strong>
-                  <span>{player.teamName} · {player.rebounds} REB · {player.assists} AST</span>
+                  <span>{player.teamName} · {player.minutes ?? 0} MIN · {player.rebounds} REB · {player.assists} AST</span>
                 </div>
                 <div className="rating-pill">{player.points}</div>
               </div>
@@ -510,8 +572,8 @@ function DashboardView({
   );
 }
 
-function getTeam(teamId: string): Team {
-  const team = teams.find((candidate) => candidate.id === teamId);
+function getTeam(teamId: string, teamList: Team[] = teams): Team {
+  const team = teamList.find((candidate) => candidate.id === teamId);
 
   if (!team) {
     throw new Error(`Team not found: ${teamId}`);
