@@ -60,6 +60,27 @@ export function renewPlayerContract(team: Team, playerId: string): Team {
   };
 }
 
+export function releasePlayer(team: Team, playerId: string): Team {
+  if (team.roster.length <= 8) return team;
+
+  return {
+    ...team,
+    roster: team.roster.filter((player) => player.id !== playerId),
+  };
+}
+
+export function canReleasePlayer(team: Team, playerId: string) {
+  const player = team.roster.find((candidate) => candidate.id === playerId);
+  if (!player) return { approved: false, reason: 'Player not found' };
+  if (team.roster.length <= 8) return { approved: false, reason: 'Minimum roster size reached' };
+  if (player.role === 'Starter' && player.overall >= 76) return { approved: false, reason: 'Board blocks releasing key starter' };
+  return { approved: true, reason: 'Release approved' };
+}
+
+export function getReleaseSaving(player: Player, team: Team) {
+  return getPlayerContract(player, team).annualWage;
+}
+
 export function formatMoney(value: number) {
   const sign = value < 0 ? '-' : '';
   const absolute = Math.abs(value);
