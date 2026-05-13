@@ -98,7 +98,7 @@ export function MatchResultScreen({ latestResult, results, selectedTeamId, teams
           <div className="assistant-notes">
             <ResultNote title="Matchup read" body={`Pre-game read was: ${latestResult.matchupLabel}.`} />
             <ResultNote title="Winning side" body={`${winner.name} finished stronger and took the result.`} />
-            <ResultNote title="Box score" body="Full player scoring, rebounding and assist totals are now stored for newly simulated games." />
+            <ResultNote title="Box score" body="Full player scoring, minutes, rebounding and assist totals are stored for newly simulated games." />
           </div>
         </article>
       </section>
@@ -213,6 +213,7 @@ function BoxScoreRow({ player }: BoxScoreRowProps) {
         <strong>{player.playerName}</strong>
         <span>{player.teamName}</span>
       </div>
+      <StatBlock label="MIN" value={player.minutes ?? 0} />
       <StatBlock label="PTS" value={player.points} />
       <StatBlock label="REB" value={player.rebounds} />
       <StatBlock label="AST" value={player.assists} />
