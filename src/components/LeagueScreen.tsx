@@ -1,3 +1,4 @@
+import { TeamLogo } from './TeamLogo';
 import type { Standing } from '../types/basketball';
 
 type LeagueScreenProps = {
@@ -56,7 +57,7 @@ export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }:
             <div className={standing.teamId === userTeamId ? 'standings-table-row user-team' : 'standings-table-row'} key={standing.teamId}>
               <span className="standings-rank">{index + 1}</span>
               <div className="standings-team-cell">
-                <span className="team-dot" style={{ background: standing.primaryColor }} />
+                <TeamLogo teamId={standing.teamId} teamName={standing.teamName} size={34} className="team-table-logo" />
                 <div>
                   <strong>{standing.teamName}</strong>
                   <span>{standing.nation}</span>
@@ -127,7 +128,7 @@ function MiniTeamList({ standings }: MiniTeamListProps) {
       {standings.map((standing, index) => (
         <div className="league-mini-row" key={standing.teamId}>
           <span>{index + 1}</span>
-          <span className="team-dot" style={{ background: standing.primaryColor }} />
+          <TeamLogo teamId={standing.teamId} teamName={standing.teamName} size={26} className="team-mini-logo" />
           <strong>{standing.shortName}</strong>
           <em>{standing.wins}-{standing.losses}</em>
         </div>
