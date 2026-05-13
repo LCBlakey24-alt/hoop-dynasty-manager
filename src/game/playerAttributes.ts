@@ -37,16 +37,17 @@ const archetypeAdjustments: Partial<Record<Player['archetype'], Partial<PlayerAt
   'Playmaking Big': { passing: 8, basketballIq: 7, rebounding: 4, ballHandling: 2 },
   'Sixth Man': { shooting: 4, finishing: 4, clutch: 5, discipline: -2 },
   'Veteran Leader': { basketballIq: 10, discipline: 9, clutch: 6, athleticism: -3 },
-  'Raw Prospect': { potential: 0 } as never,
+  'Raw Prospect': { athleticism: 4, discipline: -4, basketballIq: -3, clutch: -2 },
 };
 
 export function derivePlayerAttributes(player: Player): PlayerAttributes {
   const base = createBaseAttributes(player.overall, player.form, player.morale);
+  const combinedAdjustments = mergeAdjustments(
+    positionAdjustments[player.position],
+    archetypeAdjustments[player.archetype],
+  );
 
-  return clampAttributes({
-    ...applyAdjustments(base, positionAdjustments[player.position]),
-    ...applyAdjustments(base, archetypeAdjustments[player.archetype]),
-  });
+  return clampAttributes(applyAdjustments(base, combinedAdjustments));
 }
 
 export function getAttributeLabel(attribute: AttributeKey) {
@@ -86,6 +87,19 @@ function createBaseAttributes(overall: number, form: number, morale: number): Pl
     discipline: base,
     clutch: base,
   };
+}
+
+function mergeAdjustments(...adjustments: Array<Partial<PlayerAttributes> | undefined>) {
+  return adjustments.reduce<Partial<PlayerAttributes>>((merged, current) => {
+    if (!current) return merged;
+
+    Object.entries(current).forEach(([key, value]) => {
+      const attribute = key as AttributeKey;
+      merged[attribute] = (merged[attribute] ?? 0) + value;
+    });
+
+    return merged;
+  }, {});
 }
 
 function applyAdjustments(base: PlayerAttributes, adjustments: Partial<PlayerAttributes> = {}) {
