@@ -42,6 +42,7 @@ export function normaliseRotation(team: Team, rotation?: RotationPlan | null): R
   const fallback = createDefaultRotation(team);
 
   if (!rotation?.length) return fallback;
+  if (isCompatibleRotation(team, rotation)) return rotation;
 
   const existingEntries = new Map(rotation.map((entry) => [entry.playerId, entry]));
   let benchOrder = 1;
@@ -153,6 +154,19 @@ function chooseDefaultStarters(players: Player[]) {
     .slice(0, STARTER_COUNT - startersByPosition.length);
 
   return [...startersByPosition, ...bestRemaining];
+}
+
+function isCompatibleRotation(team: Team, rotation: RotationPlan) {
+  const playerIds = new Set(team.roster.map((player) => player.id));
+  const rotationIds = new Set(rotation.map((entry) => entry.playerId));
+
+  if (rotation.length !== team.roster.length) return false;
+  if (rotation.some((entry) => !playerIds.has(entry.playerId))) return false;
+  if (team.roster.some((player) => !rotationIds.has(player.id))) return false;
+  if (rotation.filter((entry) => entry.isStarter).length !== STARTER_COUNT) return false;
+  if (rotation.some((entry) => entry.minutes !== clampMinutes(entry.minutes))) return false;
+
+  return true;
 }
 
 function rebalanceStarterCount(team: Team, rotation: RotationPlan) {
