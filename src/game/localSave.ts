@@ -10,6 +10,8 @@ const DEFAULT_TRAINING_FOCUS: TrainingFocus = 'Balanced';
 
 export type LocalSeasonSave = {
   version: number;
+  rngSeed: number;
+  rngCalls: number;
   playoffResults: SimulatedGameResult[];
   results: SimulatedGameResult[];
   selectedTeamId: string;
@@ -49,9 +51,13 @@ export function saveLocalSeason(
   selectedTeamState: Team | null = null,
   latestConditionReport: PlayerConditionChange[] = [],
   latestDevelopmentReport: PlayerDevelopmentChange[] = [],
+  rngSeed: number = 0,
+  rngCalls: number = 0,
 ) {
   const save: LocalSeasonSave = {
     version: SAVE_VERSION,
+    rngSeed,
+    rngCalls,
     playoffResults,
     results,
     selectedTeamId,
@@ -82,6 +88,8 @@ function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
 
   return {
     version: typeof save.version === 'number' ? save.version : 1,
+    rngSeed: typeof save.rngSeed === 'number' ? save.rngSeed : 0,
+    rngCalls: typeof save.rngCalls === 'number' ? save.rngCalls : 0,
     playoffResults: Array.isArray(save.playoffResults) ? save.playoffResults as SimulatedGameResult[] : [],
     results: save.results as SimulatedGameResult[],
     selectedTeamId: save.selectedTeamId ?? DEFAULT_TEAM_ID,

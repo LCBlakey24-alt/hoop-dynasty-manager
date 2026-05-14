@@ -33,14 +33,14 @@ button:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 252px 1fr;
   min-height: 100vh;
 }
 
 .sidebar {
   border-right: 1px solid rgba(148, 163, 184, 0.16);
   background: rgba(8, 13, 24, 0.78);
-  padding: 1.5rem;
+  padding: 1.1rem 1rem;
   backdrop-filter: blur(18px);
 }
 
@@ -97,7 +97,8 @@ button:disabled {
   width: 100%;
   border: 1px solid transparent;
   border-radius: 0.9rem;
-  padding: 0.8rem 0.9rem;
+  padding: 0.6rem 0.7rem;
+  font-size: 0.86rem;
   color: #94a3b8;
   background: transparent;
   cursor: pointer;
@@ -126,7 +127,7 @@ button:disabled {
 }
 
 .content-area {
-  padding: 1.5rem;
+  padding: 1rem 1.1rem;
 }
 
 .hero-card,
@@ -147,7 +148,7 @@ button:disabled {
 }
 
 .hero-card h2 {
-  font-size: clamp(2rem, 4vw, 4.2rem);
+  font-size: clamp(1.35rem, 2.6vw, 2.3rem);
   letter-spacing: -0.07em;
 }
 
@@ -159,7 +160,7 @@ button:disabled {
 .hero-copy {
   max-width: 48rem;
   margin: 0.6rem 0 0;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
 }
 
 .team-badge {
@@ -183,7 +184,7 @@ button:disabled {
 }
 
 .panel {
-  padding: 1.1rem;
+  padding: 0.85rem;
 }
 
 .next-game-panel {
@@ -196,13 +197,13 @@ button:disabled {
 
 .stat-panel {
   display: flex;
-  min-height: 11rem;
+  min-height: 8.5rem;
   flex-direction: column;
   justify-content: space-between;
 }
 
 .stat-panel strong {
-  font-size: 2.8rem;
+  font-size: 2.05rem;
   letter-spacing: -0.08em;
 }
 
