@@ -104,10 +104,15 @@ export function App() {
     setSavedAt(save.savedAt);
   }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed]);
 
-  const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
+  const latestResult = [...playoffResults, ...results]
+    .reverse()
+    .find((result) => result.homeTeamId === selectedTeam.id || result.awayTeamId === selectedTeam.id) ?? null;
   const standings = calculateStandings(effectiveTeams, results);
   const userStanding = standings.find((standing) => standing.teamId === selectedTeam.id);
-  const nextFixture = seasonFixtures.find((fixture) => !hasResultForFixture(fixture, results));
+  const nextFixture = seasonFixtures.find((fixture) => {
+    if (hasResultForFixture(fixture, results)) return false;
+    return fixture.homeTeamId === selectedTeam.id || fixture.awayTeamId === selectedTeam.id;
+  });
   const currentRound = nextFixture?.round ?? totalRounds;
   const currentRoundFixtures = getFixturesForRound(currentRound);
   const userGameResult = [...results].reverse().find((result) => result.homeTeamId === selectedTeam.id || result.awayTeamId === selectedTeam.id) ?? null;
@@ -120,6 +125,15 @@ export function App() {
     selectedTeam,
   });
   const diagnostics = useMemo(() => calculateSimulationDiagnostics(results, selectedTeam.id), [results, selectedTeam.id]);
+  const tiredCount = selectedTeam.roster.filter((player) => (player.fatigue ?? 0) >= 65).length;
+  const injuredCount = selectedTeam.roster.filter((player) => Boolean(player.injury)).length;
+  const developmentReady = selectedTeam.roster.filter((player) => (player.developmentProgress ?? 0) >= 75 && player.overall < player.potential).length;
+  const managerTasks = [
+    tiredCount > 0 ? `${tiredCount} player${tiredCount === 1 ? '' : 's'} on fatigue watch` : null,
+    injuredCount > 0 ? `${injuredCount} injury case${injuredCount === 1 ? '' : 's'} need minute protection` : null,
+    developmentReady > 0 ? `${developmentReady} prospect${developmentReady === 1 ? '' : 's'} near OVR growth` : null,
+    boardConfidence < 55 ? 'Board pressure increasing — prioritise results' : null,
+  ].filter(Boolean) as string[];
   const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId, effectiveTeams) : null;
   const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId, effectiveTeams) : null;
   const nextMatchupLabel = nextHomeTeam && nextAwayTeam
@@ -399,6 +413,7 @@ export function App() {
             boardConfidence={boardConfidence}
             currentRound={currentRound}
             diagnostics={diagnostics}
+            developmentReady={developmentReady}
             handleResetSeason={handleResetSeason}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
             handleSimulateNextFixture={handleSimulateNextFixture}
@@ -411,9 +426,12 @@ export function App() {
             results={results}
             savedAt={savedAt}
             selectedTeam={selectedTeam}
+            tiredCount={tiredCount}
+            injuredCount={injuredCount}
             standings={standings}
             tactics={tactics}
             topPlayers={topPlayers}
+            managerTasks={managerTasks}
             userGameResult={userGameResult}
             userStanding={userStanding}
             userWonLatestGame={userWonLatestGame}
@@ -527,6 +545,7 @@ function ScoreBlock({ team, score, colour }: { team: string; score: number; colo
 type DashboardViewProps = {
   boardConfidence: number;
   currentRound: number;
+  developmentReady: number;
   diagnostics: ReturnType<typeof calculateSimulationDiagnostics>;
   handleResetSeason: () => void;
   handleSimulateCurrentRound: () => void;
@@ -540,9 +559,12 @@ type DashboardViewProps = {
   results: SimulatedGameResult[];
   savedAt: string | null;
   selectedTeam: Team;
+  tiredCount: number;
+  injuredCount: number;
   standings: ReturnType<typeof calculateStandings>;
   tactics: TacticalSettings;
   topPlayers: Team['roster'];
+  managerTasks: string[];
   userGameResult: SimulatedGameResult | null;
   userStanding: ReturnType<typeof calculateStandings>[number] | undefined;
   userWonLatestGame: boolean;
@@ -551,6 +573,7 @@ type DashboardViewProps = {
 function DashboardView({
   boardConfidence,
   currentRound,
+  developmentReady,
   diagnostics,
   handleResetSeason,
   handleSimulateCurrentRound,
@@ -564,9 +587,12 @@ function DashboardView({
   results,
   savedAt,
   selectedTeam,
+  tiredCount,
+  injuredCount,
   standings,
   tactics,
   topPlayers,
+  managerTasks,
   userGameResult,
   userStanding,
   userWonLatestGame,
@@ -632,6 +658,12 @@ function DashboardView({
         </span>
       </article>
 
+      <article className="panel stat-panel">
+        <p className="eyebrow">Team Snapshot</p>
+        <strong>{injuredCount + tiredCount}</strong>
+        <span className="muted">{injuredCount} injured · {tiredCount} tired · {developmentReady} near growth</span>
+      </article>
+
       <article className="panel wide-panel save-panel">
         <div className="panel-header">
           <div>
@@ -644,6 +676,24 @@ function DashboardView({
           {savedAt ? `Last saved ${new Date(savedAt).toLocaleString()}` : 'No saved season yet.'}
         </p>
         <button className="secondary-action danger-action" onClick={handleResetSeason}>Reset Local Season</button>
+      </article>
+
+      <article className="panel wide-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Manager Tasks</p>
+            <h3>Recommended next moves</h3>
+          </div>
+          <span className="chip">{managerTasks.length || 1} item{managerTasks.length === 1 ? '' : 's'}</span>
+        </div>
+        <div className="assistant-notes">
+          {(managerTasks.length ? managerTasks : ['No urgent tasks — keep momentum and monitor fatigue']).map((task) => (
+            <div className="assistant-note" key={task}>
+              <strong>Action</strong>
+              <span>{task}</span>
+            </div>
+          ))}
+        </div>
       </article>
 
       {latestResult && (
