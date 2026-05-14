@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getTeamProfile } from '../data/teamProfiles';
 import { derivePlayerAttributes, getAttributeLabel, type AttributeKey } from '../game/playerAttributes';
 import type { Player, PlayerRole, Team } from '../types/basketball';
@@ -16,8 +17,16 @@ const roleOrder: Record<PlayerRole, number> = {
 const featuredAttributes: AttributeKey[] = ['shooting', 'finishing', 'passing', 'rebounding', 'perimeterDefence', 'basketballIq'];
 
 export function RosterScreen({ team }: RosterScreenProps) {
+  const [filter, setFilter] = useState<'All' | 'Starters' | 'Tired' | 'Injured' | 'High Upside'>('All');
   const profile = getTeamProfile(team.id);
   const sortedRoster = [...team.roster].sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || b.overall - a.overall);
+  const filteredRoster = sortedRoster.filter((player) => {
+    if (filter === 'Starters') return player.role === 'Starter';
+    if (filter === 'Tired') return (player.fatigue ?? 0) >= 65;
+    if (filter === 'Injured') return Boolean(player.injury);
+    if (filter === 'High Upside') return player.potential - player.overall >= 8;
+    return true;
+  });
   const averageOverall = Math.round(average(team.roster.map((player) => player.overall)));
   const averagePotential = Math.round(average(team.roster.map((player) => player.potential)));
   const bestProspect = [...team.roster].sort((a, b) => b.potential - a.potential)[0];
@@ -168,6 +177,13 @@ export function RosterScreen({ team }: RosterScreenProps) {
         </div>
 
         <div className="roster-table">
+          <div className="option-row" style={{ marginBottom: '1rem' }}>
+            {(['All', 'Starters', 'Tired', 'Injured', 'High Upside'] as const).map((option) => (
+              <button className={filter === option ? 'option-button active' : 'option-button'} key={option} onClick={() => setFilter(option)}>
+                {option}
+              </button>
+            ))}
+          </div>
           <div className="roster-row roster-row-header">
             <span>Player</span>
             <span>Pos</span>
@@ -179,7 +195,7 @@ export function RosterScreen({ team }: RosterScreenProps) {
             <span>Form</span>
           </div>
 
-          {sortedRoster.map((player) => (
+          {filteredRoster.map((player) => (
             <RosterRow player={player} key={player.id} />
           ))}
         </div>
@@ -213,7 +229,7 @@ function RosterRow({ player }: RosterRowProps) {
     <div className="roster-row">
       <div className="roster-player-cell">
         <strong>{player.name}</strong>
-        <span>{player.archetype} · {getPlayerStatusTag(player)}</span>
+        <span>{player.archetype} · {getPlayerStatusTag(player)} · {getPlayerRecommendation(player)}</span>
       </div>
       <span className="position-pill">{player.position}</span>
       <span>{player.age}</span>
@@ -224,6 +240,14 @@ function RosterRow({ player }: RosterRowProps) {
       <Meter value={player.form} />
     </div>
   );
+}
+
+function getPlayerRecommendation(player: Player) {
+  if (player.injury) return 'LIMIT MINUTES';
+  if ((player.fatigue ?? 0) >= 75) return 'REST RISK';
+  if ((player.potential - player.overall) >= 10) return 'DEVELOPMENT PRIORITY';
+  if (player.role === 'Starter' && player.overall >= 75) return 'START NOW';
+  return 'STEADY ROLE';
 }
 
 type MeterProps = {

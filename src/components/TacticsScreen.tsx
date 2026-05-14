@@ -175,6 +175,22 @@ export function TacticsScreen({ team, tactics, rotationPlan, onRotationChange, o
         <article className="panel tactics-panel">
           <div className="panel-header">
             <div>
+              <p className="eyebrow">Expected Effects</p>
+              <h3>Pre-game preview</h3>
+            </div>
+            <span className="chip">Forecast</span>
+          </div>
+          <div className="assistant-notes">
+            <Note title="Expected Pace" body={getExpectedPace(tactics.pace)} />
+            <Note title="Variance" body={getExpectedVariance(tactics.offensiveFocus, tactics.defensiveStyle)} />
+            <Note title="Fatigue Pressure" body={getFatiguePressure(tactics.pace, totalMinutes)} />
+            <Note title="Rebounding Tradeoff" body={tactics.reboundingFocus === 'Crash Boards' ? 'More second-chance boards, weaker transition cover.' : 'Safer transition shape, fewer extra boards.'} />
+          </div>
+        </article>
+
+        <article className="panel tactics-panel">
+          <div className="panel-header">
+            <div>
               <p className="eyebrow">Tactical Controls</p>
               <h3>Match instructions</h3>
             </div>
@@ -278,6 +294,25 @@ function Meter({ value }: MeterProps) {
       <span>{value}</span>
     </div>
   );
+}
+
+function getExpectedPace(pace: TacticalSettings['pace']) {
+  if (pace === 'Fast') return 'High-possession game with quicker shots and transitions.';
+  if (pace === 'Slow') return 'Controlled tempo with fewer possessions and lower score volatility.';
+  return 'Balanced pace with moderate possession count.';
+}
+
+function getExpectedVariance(offense: TacticalSettings['offensiveFocus'], defense: TacticalSettings['defensiveStyle']) {
+  if (offense === 'Three-Point Heavy' || defense === 'Press') return 'Higher swing outcomes; hot/cold stretches are more likely.';
+  if (offense === 'Inside' && defense === 'Zone') return 'Moderate variance; efficiency depends on paint control.';
+  return 'Stable variance profile with fewer extreme score swings.';
+}
+
+function getFatiguePressure(pace: TacticalSettings['pace'], totalMinutes: number) {
+  if (pace === 'Fast' && totalMinutes < TARGET_TEAM_MINUTES - 6) return 'High fatigue risk from fast pace and short rotation.';
+  if (pace === 'Fast') return 'Moderate-high fatigue pressure; monitor heavy-minute players.';
+  if (pace === 'Slow') return 'Lower fatigue pressure and steadier workloads.';
+  return 'Moderate fatigue pressure.';
 }
 
 type NoteProps = {
