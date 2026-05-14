@@ -8,6 +8,7 @@ import './styles/collapsible-sidebar.css';
 import './styles/landing-menu.css';
 import './styles/team-profiles.css';
 import './styles/player-attributes.css';
+import './styles/game-feel.css';
 
 initialiseSidebarToggle();
 
