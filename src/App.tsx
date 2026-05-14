@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { ContractsScreen } from './components/ContractsScreen';
@@ -26,6 +26,8 @@ import { applyPostGameDevelopment } from './game/playerDevelopment';
 import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { createDefaultRotation, normaliseRotation } from './game/rotation';
+import { createSeededRng, generateSeed } from './game/rng';
+import { calculateSimulationDiagnostics } from './game/simulationDiagnostics';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
@@ -73,6 +75,8 @@ export function App() {
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
+  const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
+  const simulationRng = useRef(createSeededRng(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed));
 
   const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
   const rotation = normaliseRotation(selectedTeam, rotationPlan);
@@ -84,9 +88,9 @@ export function App() {
   const hasSave = Boolean(initialSave) || results.length > 0 || playoffResults.length > 0;
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport);
+    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed);
     setSavedAt(save.savedAt);
-  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport]);
+  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed]);
 
   const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
   const standings = calculateStandings(effectiveTeams, results);
@@ -96,7 +100,8 @@ export function App() {
   const currentRoundFixtures = getFixturesForRound(currentRound);
   const userGameResult = [...results].reverse().find((result) => result.homeTeamId === selectedTeam.id || result.awayTeamId === selectedTeam.id) ?? null;
   const userWonLatestGame = userGameResult?.winnerTeamId === selectedTeam.id;
-  const boardConfidence = calculateBoardConfidence({ standings, selectedTeamId: selectedTeam.id, latestUserGame: userGameResult });
+  const boardConfidence = calculateBoardConfidence({ standings, selectedTeamId: selectedTeam.id, latestUserGame: userGameResult, results });
+  const diagnostics = useMemo(() => calculateSimulationDiagnostics(results, selectedTeam.id), [results, selectedTeam.id]);
   const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId, effectiveTeams) : null;
   const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId, effectiveTeams) : null;
   const nextMatchupLabel = nextHomeTeam && nextAwayTeam
@@ -105,6 +110,12 @@ export function App() {
       awayTactics: nextAwayTeam.id === selectedTeam.id ? tactics : defaultTactics,
     }).matchupLabel
     : null;
+
+  useEffect(() => {
+    if (import.meta.env.DEV && diagnostics.games > 0) {
+      console.info('[Sim Diagnostics]', diagnostics);
+    }
+  }, [diagnostics]);
 
   function resetManagedState(teamId = selectedTeamId) {
     const freshTeam = getTeam(teamId);
@@ -121,6 +132,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    simulationRng.current = createSeededRng(nextSeed);
     resetManagedState();
   }
 
@@ -131,6 +145,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    simulationRng.current = createSeededRng(nextSeed);
     resetManagedState();
     setActiveView('Team Select');
   }
@@ -147,6 +164,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    simulationRng.current = createSeededRng(nextSeed);
     setActiveView('Dashboard');
   }
 
@@ -177,6 +197,7 @@ export function App() {
       awayTactics,
       homeRotation: homeIsUser ? rotation : null,
       awayRotation: awayIsUser ? rotation : null,
+      rng: simulationRng.current,
     });
 
     if (!homeIsUser && !awayIsUser) return { result, managedTeam, conditionReport: latestConditionReport, developmentReport: latestDevelopmentReport };
@@ -256,6 +277,7 @@ export function App() {
             awayTactics: matchup.awaySeed.standing.teamId === selectedTeam.id ? tactics : defaultTactics,
             homeRotation: matchup.homeSeed.standing.teamId === selectedTeam.id ? rotation : null,
             awayRotation: matchup.awaySeed.standing.teamId === selectedTeam.id ? rotation : null,
+            rng: simulationRng.current,
           },
         ));
 
@@ -337,6 +359,7 @@ export function App() {
           <DashboardView
             boardConfidence={boardConfidence}
             currentRound={currentRound}
+            diagnostics={diagnostics}
             handleResetSeason={handleResetSeason}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
             handleSimulateNextFixture={handleSimulateNextFixture}
@@ -464,6 +487,7 @@ function ScoreBlock({ team, score, colour }: { team: string; score: number; colo
 type DashboardViewProps = {
   boardConfidence: number;
   currentRound: number;
+  diagnostics: ReturnType<typeof calculateSimulationDiagnostics>;
   handleResetSeason: () => void;
   handleSimulateCurrentRound: () => void;
   handleSimulateNextFixture: () => void;
@@ -487,6 +511,7 @@ type DashboardViewProps = {
 function DashboardView({
   boardConfidence,
   currentRound,
+  diagnostics,
   handleResetSeason,
   handleSimulateCurrentRound,
   handleSimulateNextFixture,
@@ -554,6 +579,16 @@ function DashboardView({
         <strong>{boardConfidence}%</strong>
         <span className={userGameResult && !userWonLatestGame ? 'warning' : 'positive'}>
           {userGameResult ? (userWonLatestGame ? 'Rising' : 'Watching closely') : 'Stable'}
+        </span>
+      </article>
+
+      <article className="panel stat-panel">
+        <p className="eyebrow">Sim Health</p>
+        <strong>{diagnostics.games ? Math.round(diagnostics.averageCombinedScore) : '—'}</strong>
+        <span className="muted">
+          {diagnostics.games
+            ? `Home W ${Math.round(diagnostics.homeWinRate * 100)}% · Blowouts ${Math.round(diagnostics.blowoutRate * 100)}%`
+            : 'No games simulated yet'}
         </span>
       </article>
 
@@ -680,10 +715,12 @@ function calculateBoardConfidence({
   standings,
   selectedTeamId,
   latestUserGame,
+  results,
 }: {
   standings: ReturnType<typeof calculateStandings>;
   selectedTeamId: string;
   latestUserGame: SimulatedGameResult | null;
+  results: SimulatedGameResult[];
 }) {
   const teamIndex = standings.findIndex((standing) => standing.teamId === selectedTeamId);
 
@@ -692,10 +729,15 @@ function calculateBoardConfidence({
   const standing = standings[teamIndex];
   const rank = teamIndex + 1;
   const totalTeams = standings.length;
+  const recentUserGames = results
+    .filter((result) => result.homeTeamId === selectedTeamId || result.awayTeamId === selectedTeamId)
+    .slice(-5);
+  const recentWins = recentUserGames.filter((result) => result.winnerTeamId === selectedTeamId).length;
+  const formScore = recentUserGames.length > 0 ? Math.round(((recentWins / recentUserGames.length) - 0.5) * 10) : 0;
   const rankScore = Math.round(((totalTeams - rank) / Math.max(1, totalTeams - 1)) * 22);
   const recordScore = Math.round((standing.winPercentage - 0.5) * 40);
   const pdScore = Math.max(-8, Math.min(8, Math.round(standing.pointDifference / Math.max(1, standing.played * 2.5))));
   const latestGameScore = latestUserGame ? (latestUserGame.winnerTeamId === selectedTeamId ? 4 : -5) : 0;
 
-  return Math.max(40, Math.min(96, 68 + rankScore + recordScore + pdScore + latestGameScore));
+  return Math.max(40, Math.min(96, 66 + rankScore + recordScore + pdScore + latestGameScore + formScore));
 }
