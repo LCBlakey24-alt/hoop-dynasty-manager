@@ -44,7 +44,11 @@ export function MatchResultScreen({ latestConditionReport, latestResult, results
   const homeTeam = findTeam(latestResult.homeTeamId, teams);
   const awayTeam = findTeam(latestResult.awayTeamId, teams);
   const winner = findTeam(latestResult.winnerTeamId, teams);
+  const loser = latestResult.winnerTeamId === homeTeam.id ? awayTeam : homeTeam;
+  const margin = Math.abs(latestResult.homeScore - latestResult.awayScore);
+  const resultType = getResultType(margin);
   const sortedPerformers = [...latestResult.topPerformers].sort((a, b) => b.points - a.points);
+  const topPerformer = sortedPerformers[0];
   const homeBoxScore = latestResult.homeBoxScore ?? latestResult.topPerformers.filter((player) => player.teamId === homeTeam.id);
   const awayBoxScore = latestResult.awayBoxScore ?? latestResult.topPerformers.filter((player) => player.teamId === awayTeam.id);
 
@@ -56,19 +60,27 @@ export function MatchResultScreen({ latestConditionReport, latestResult, results
           <h3>{winner.name} win</h3>
           <p className="muted">{latestResult.summary}</p>
         </div>
-        <span className="chip">{latestResult.matchupLabel}</span>
+        <span className="chip">{resultType}</span>
       </div>
 
       <article className="panel result-hero-panel">
         <div className="result-score-layout">
           <ResultTeam team={homeTeam} score={latestResult.homeScore} />
           <div className="result-centre-label">
-            <span>FINAL</span>
-            <strong>BSBL</strong>
+            <span>{resultType}</span>
+            <strong>{margin}</strong>
+            <span>POINT MARGIN</span>
           </div>
           <ResultTeam team={awayTeam} score={latestResult.awayScore} align="right" />
         </div>
       </article>
+
+      <section className="league-summary-grid">
+        <SummaryCard label="Winner" value={winner.shortName} helper={`${winner.name} by ${margin}`} />
+        <SummaryCard label="Result Type" value={resultType} helper={getResultTypeHelper(margin)} />
+        <SummaryCard label="Top Scorer" value={topPerformer?.playerName ?? '—'} helper={topPerformer ? `${topPerformer.points} PTS · ${topPerformer.teamName}` : 'No box score'} />
+        <SummaryCard label="Matchup Read" value={latestResult.matchupLabel} helper="Pre-game simulation read" />
+      </section>
 
       <section className="result-grid">
         <article className="panel result-detail-panel">
@@ -97,8 +109,8 @@ export function MatchResultScreen({ latestConditionReport, latestResult, results
           </div>
 
           <div className="assistant-notes">
-            <ResultNote title="Matchup read" body={`Pre-game read was: ${latestResult.matchupLabel}.`} />
-            <ResultNote title="Winning side" body={`${winner.name} finished stronger and took the result.`} />
+            <ResultNote title="Result read" body={`${winner.name} beat ${loser.name} by ${margin}. ${getResultTypeHelper(margin)}`} />
+            <ResultNote title="Player spotlight" body={topPerformer ? `${topPerformer.playerName} led the game with ${topPerformer.points} points, ${topPerformer.rebounds} rebounds and ${topPerformer.assists} assists.` : 'No standout performer was recorded.'} />
             <ResultNote title="Box score" body="Full player scoring, minutes, rebounding and assist totals are stored for newly simulated games." />
           </div>
         </article>
@@ -137,11 +149,12 @@ export function MatchResultScreen({ latestConditionReport, latestResult, results
             const home = findTeam(result.homeTeamId, teams);
             const away = findTeam(result.awayTeamId, teams);
             const winnerTeam = findTeam(result.winnerTeamId, teams);
+            const historyMargin = Math.abs(result.homeScore - result.awayScore);
             return (
               <div className="box-score-row" key={`${result.homeTeamId}-${result.awayTeamId}-${index}`}>
                 <div>
                   <strong>{home.shortName} {result.homeScore} - {result.awayScore} {away.shortName}</strong>
-                  <span>{winnerTeam.name} won · {result.matchupLabel}</span>
+                  <span>{winnerTeam.name} won · {getResultType(historyMargin)} · {result.matchupLabel}</span>
                 </div>
               </div>
             );
@@ -149,6 +162,16 @@ export function MatchResultScreen({ latestConditionReport, latestResult, results
         </div>
       </article>
     </section>
+  );
+}
+
+function SummaryCard({ label, value, helper }: { label: string; value: string; helper: string }) {
+  return (
+    <article className="panel league-summary-card">
+      <p className="eyebrow">{label}</p>
+      <strong>{value}</strong>
+      <span className="muted">{helper}</span>
+    </article>
   );
 }
 
@@ -222,6 +245,9 @@ type TeamBoxScorePanelProps = {
 
 function TeamBoxScorePanel({ boxScore, team }: TeamBoxScorePanelProps) {
   const sortedBoxScore = [...boxScore].sort((a, b) => b.points - a.points);
+  const totalPoints = sortedBoxScore.reduce((total, player) => total + player.points, 0);
+  const totalRebounds = sortedBoxScore.reduce((total, player) => total + player.rebounds, 0);
+  const totalAssists = sortedBoxScore.reduce((total, player) => total + player.assists, 0);
 
   return (
     <article className="panel result-detail-panel">
@@ -230,7 +256,7 @@ function TeamBoxScorePanel({ boxScore, team }: TeamBoxScorePanelProps) {
           <p className="eyebrow">Team Box Score</p>
           <h3>{team.shortName} players</h3>
         </div>
-        <span className="chip">{boxScore.length || 'Legacy'} rows</span>
+        <span className="chip">{totalPoints} PTS · {totalRebounds} REB · {totalAssists} AST</span>
       </div>
 
       <div className="box-score-list full-box-score-list">
@@ -294,6 +320,20 @@ function ResultNote({ title, body }: ResultNoteProps) {
       <span>{body}</span>
     </div>
   );
+}
+
+function getResultType(margin: number) {
+  if (margin <= 3) return 'Close Game';
+  if (margin <= 9) return 'Competitive Win';
+  if (margin <= 17) return 'Comfortable Win';
+  return 'Statement Win';
+}
+
+function getResultTypeHelper(margin: number) {
+  if (margin <= 3) return 'A one-possession finish with late-game pressure.';
+  if (margin <= 9) return 'A competitive game decided by execution and composure.';
+  if (margin <= 17) return 'A controlled win with clear separation.';
+  return 'A dominant performance and a major confidence boost.';
 }
 
 function findTeam(teamId: string, teams: Team[]) {
