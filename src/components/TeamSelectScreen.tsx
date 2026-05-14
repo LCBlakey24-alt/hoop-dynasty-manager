@@ -9,6 +9,11 @@ type TeamSelectScreenProps = {
 };
 
 export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSelectScreenProps) {
+  const highestReputation = [...teams].sort((a, b) => b.reputation - a.reputation)[0];
+  const mostHistoric = [...teams].sort((a, b) => b.championships - a.championships)[0];
+  const bestRebuild = [...teams].sort((a, b) => a.reputation - b.reputation || a.championships - b.championships)[0];
+  const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0];
+
   return (
     <section className="team-select-screen">
       <div className="screen-heading">
@@ -17,13 +22,37 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
           <h3>Choose your BSBL team</h3>
           <p className="muted">Pick a club with its own arena, culture, rivalries and basketball identity.</p>
         </div>
-        <span className="chip">12 clubs</span>
+        <span className="chip">{teams.length} clubs</span>
       </div>
+
+      <section className="roster-summary-grid">
+        <SummaryCard label="Selected" value={selectedTeam?.shortName ?? '—'} helper={selectedTeam?.name ?? 'Choose a club'} />
+        <SummaryCard label="Highest Rep" value={highestReputation.shortName} helper={`${highestReputation.name} · REP ${highestReputation.reputation}`} />
+        <SummaryCard label="Most Historic" value={mostHistoric.shortName} helper={`${mostHistoric.championships} historical titles`} />
+        <SummaryCard label="Rebuild Pick" value={bestRebuild.shortName} helper={`${bestRebuild.name} · ${getDifficultyLabel(bestRebuild)}`} />
+      </section>
+
+      <article className="panel result-detail-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Club Selection Guide</p>
+            <h3>Pick your story</h3>
+          </div>
+          <span className="chip">Manager setup</span>
+        </div>
+        <div className="assistant-notes">
+          <GuideNote title="Win now" body="Choose a high-reputation club if you want pressure, better players and immediate expectations." />
+          <GuideNote title="Build slowly" body="Choose a low-reputation club if you want a harder rebuild with more room to create a legacy." />
+          <GuideNote title="Style first" body="Pick based on play style if you care more about identity than difficulty." />
+        </div>
+      </article>
 
       <section className="team-select-grid">
         {teams.map((team) => {
           const isSelected = selectedTeamId === team.id;
           const profile = getTeamProfile(team.id);
+          const difficulty = getDifficultyLabel(team);
+          const identityTag = getIdentityTag(team);
 
           return (
             <article className={isSelected ? 'panel team-select-card selected' : 'panel team-select-card'} key={team.id}>
@@ -50,6 +79,8 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
 
               <div className="team-select-meta">
                 <span>{team.playStyle}</span>
+                <span>{difficulty}</span>
+                <span>{identityTag}</span>
                 <span>REP {team.reputation}</span>
                 <span>{team.championships} Titles</span>
               </div>
@@ -68,4 +99,41 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
       </section>
     </section>
   );
+}
+
+function SummaryCard({ label, value, helper }: { label: string; value: string; helper: string }) {
+  return (
+    <article className="panel roster-summary-card">
+      <p className="eyebrow">{label}</p>
+      <strong>{value}</strong>
+      <span className="muted">{helper}</span>
+    </article>
+  );
+}
+
+function GuideNote({ body, title }: { body: string; title: string }) {
+  return (
+    <div className="assistant-note">
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </div>
+  );
+}
+
+function getDifficultyLabel(team: Team) {
+  if (team.reputation >= 78) return 'Win Now';
+  if (team.reputation >= 70) return 'Playoff Push';
+  if (team.reputation >= 64) return 'Builder';
+  return 'Hard Rebuild';
+}
+
+function getIdentityTag(team: Team) {
+  const style = team.playStyle.toLowerCase();
+
+  if (style.includes('fast') || style.includes('transition')) return 'Tempo Team';
+  if (style.includes('three') || style.includes('spacing')) return 'Shooting Team';
+  if (style.includes('defence') || style.includes('defense')) return 'Defensive Team';
+  if (style.includes('rebounding') || style.includes('paint')) return 'Physical Team';
+  if (style.includes('passing')) return 'System Team';
+  return 'Balanced Team';
 }
