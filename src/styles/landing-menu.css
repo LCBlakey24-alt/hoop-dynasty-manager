@@ -3,22 +3,22 @@
   padding: 1.5rem;
   color: #f8fafc;
   background:
-    radial-gradient(circle at top right, rgba(249, 115, 22, 0.18), transparent 34rem),
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 28rem),
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.14), transparent 30rem),
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 24rem),
     #050a12;
 }
 
 .landing-hero {
   margin-bottom: 1rem;
-  padding: 2rem;
+  padding: clamp(1.2rem, 4vw, 2rem);
 }
 
 .landing-hero h2 {
   max-width: 58rem;
   margin: 0;
-  font-size: clamp(2.4rem, 6vw, 5.5rem);
-  line-height: 0.95;
-  letter-spacing: -0.08em;
+  font-size: clamp(2.1rem, 6vw, 5.5rem);
+  line-height: 0.98;
+  letter-spacing: -0.07em;
 }
 
 .landing-copy {
@@ -31,6 +31,14 @@
   display: flex;
   gap: 0.75rem;
   max-width: 36rem;
+}
+
+.landing-actions .primary-action,
+.landing-actions .secondary-action,
+.mode-card .primary-action,
+.mode-card .secondary-action {
+  min-height: 3.2rem;
+  touch-action: manipulation;
 }
 
 .mode-card-grid {
@@ -55,7 +63,7 @@
 .mode-card.playable {
   border-color: rgba(249, 115, 22, 0.35);
   background:
-    radial-gradient(circle at top right, rgba(249, 115, 22, 0.1), transparent 18rem),
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.08), transparent 16rem),
     linear-gradient(145deg, rgba(16, 24, 39, 0.96), rgba(22, 32, 51, 0.82));
 }
 
@@ -87,5 +95,52 @@
 
   .landing-actions {
     flex-direction: column;
+  }
+
+  .mode-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-screen {
+    min-height: 100svh;
+    padding: 0.85rem;
+    background: #050a12;
+  }
+
+  .landing-hero {
+    padding: 1rem;
+  }
+
+  .landing-hero h2 {
+    font-size: clamp(1.95rem, 11vw, 3.1rem);
+    line-height: 1.02;
+    letter-spacing: -0.055em;
+  }
+
+  .landing-copy {
+    font-size: 0.98rem;
+  }
+
+  .mode-card-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .mode-card {
+    min-height: auto;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .mode-card.locked {
+    min-height: 11rem;
+  }
+
+  .coming-soon-banner {
+    top: 0.7rem;
+    right: -2.8rem;
+    transform: rotate(35deg) scale(0.92);
   }
 }
