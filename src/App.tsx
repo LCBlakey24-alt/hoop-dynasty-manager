@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { ContractsScreen } from './components/ContractsScreen';
@@ -18,6 +18,7 @@ import { TrainingScreen, type TrainingFocus } from './components/TrainingScreen'
 import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { teams } from './data/teams';
 import { calculateStandings } from './game/calculateStandings';
+import { calculateBoardConfidence } from './game/boardConfidence';
 import { releasePlayer, renewPlayerContract } from './game/contracts';
 import { signFreeAgent } from './game/freeAgents';
 import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
@@ -26,12 +27,17 @@ import { applyPostGameDevelopment } from './game/playerDevelopment';
 import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { createDefaultRotation, normaliseRotation } from './game/rotation';
+import { generateSeed } from './game/rng';
+import { runSimulationHarness } from './game/simulationHarness';
+import { calculateSimulationDiagnostics } from './game/simulationDiagnostics';
+import { useSimulationRng } from './game/useSimulationRng';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Player, PlayerConditionChange, PlayerDevelopmentChange, RotationPlan, Team } from './types/basketball';
 
 type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Contracts' | 'Free Agents' | 'Board & Finance' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
+type DisplayDensity = 'Normal' | 'Compact' | 'Ultra';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -73,6 +79,16 @@ export function App() {
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
+  const [displayDensity, setDisplayDensity] = useState<DisplayDensity>(() => {
+    if (typeof window === 'undefined') return 'Compact';
+    const saved = window.localStorage.getItem('hoop-dynasty-display-density');
+    return saved === 'Normal' || saved === 'Compact' || saved === 'Ultra' ? saved : 'Compact';
+  });
+  const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
+  const { rng: simulationRng, reset: resetSimulationRng, rngCallsRef } = useSimulationRng(
+    initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed,
+    initialSave?.rngCalls ?? 0,
+  );
 
   const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
   const rotation = normaliseRotation(selectedTeam, rotationPlan);
@@ -84,19 +100,48 @@ export function App() {
   const hasSave = Boolean(initialSave) || results.length > 0 || playoffResults.length > 0;
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport);
+    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed, rngCallsRef.current);
     setSavedAt(save.savedAt);
-  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport]);
+  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed]);
 
-  const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
+  useEffect(() => {
+    document.body.classList.remove('density-normal', 'density-compact', 'density-ultra');
+    document.body.classList.add(`density-${displayDensity.toLowerCase()}`);
+    window.localStorage.setItem('hoop-dynasty-display-density', displayDensity);
+  }, [displayDensity]);
+
+  const latestResult = [...playoffResults, ...results]
+    .reverse()
+    .find((result) => result.homeTeamId === selectedTeam.id || result.awayTeamId === selectedTeam.id) ?? null;
   const standings = calculateStandings(effectiveTeams, results);
   const userStanding = standings.find((standing) => standing.teamId === selectedTeam.id);
-  const nextFixture = seasonFixtures.find((fixture) => !hasResultForFixture(fixture, results));
+  const nextFixture = seasonFixtures.find((fixture) => {
+    if (hasResultForFixture(fixture, results)) return false;
+    return fixture.homeTeamId === selectedTeam.id || fixture.awayTeamId === selectedTeam.id;
+  });
   const currentRound = nextFixture?.round ?? totalRounds;
   const currentRoundFixtures = getFixturesForRound(currentRound);
   const userGameResult = [...results].reverse().find((result) => result.homeTeamId === selectedTeam.id || result.awayTeamId === selectedTeam.id) ?? null;
   const userWonLatestGame = userGameResult?.winnerTeamId === selectedTeam.id;
-  const boardConfidence = calculateBoardConfidence({ standings, selectedTeamId: selectedTeam.id, latestUserGame: userGameResult });
+  const boardConfidence = calculateBoardConfidence({
+    standings,
+    selectedTeamId: selectedTeam.id,
+    latestUserGame: userGameResult,
+    results,
+    selectedTeam,
+  });
+  const diagnostics = useMemo(() => calculateSimulationDiagnostics(results, selectedTeam.id), [results, selectedTeam.id]);
+  const tiredCount = selectedTeam.roster.filter((player) => (player.fatigue ?? 0) >= 65).length;
+  const injuredCount = selectedTeam.roster.filter((player) => Boolean(player.injury)).length;
+  const developmentReady = selectedTeam.roster.filter((player) => (player.developmentProgress ?? 0) >= 75 && player.overall < player.potential).length;
+  const managerTasks = [
+    tiredCount > 0 ? `${tiredCount} player${tiredCount === 1 ? '' : 's'} on fatigue watch` : null,
+    injuredCount > 0 ? `${injuredCount} injury case${injuredCount === 1 ? '' : 's'} need minute protection` : null,
+    developmentReady > 0 ? `${developmentReady} prospect${developmentReady === 1 ? '' : 's'} near OVR growth` : null,
+    boardConfidence < 55 ? 'Board pressure increasing — prioritise results' : null,
+  ].filter(Boolean) as string[];
+  const seasonObjective = getSeasonObjective(selectedTeam.reputation);
+  const objectiveProgress = getObjectiveProgress(standings, selectedTeam.id, seasonObjective.targetRank);
   const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId, effectiveTeams) : null;
   const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId, effectiveTeams) : null;
   const nextMatchupLabel = nextHomeTeam && nextAwayTeam
@@ -105,6 +150,18 @@ export function App() {
       awayTactics: nextAwayTeam.id === selectedTeam.id ? tactics : defaultTactics,
     }).matchupLabel
     : null;
+
+  useEffect(() => {
+    if (import.meta.env.DEV && diagnostics.games > 0) {
+      console.info('[Sim Diagnostics]', diagnostics);
+    }
+  }, [diagnostics]);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.info('[Sim Harness 500 games]', runSimulationHarness(500, rngSeed));
+    }
+  }, [rngSeed]);
 
   function resetManagedState(teamId = selectedTeamId) {
     const freshTeam = getTeam(teamId);
@@ -121,6 +178,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    resetSimulationRng(nextSeed);
     resetManagedState();
   }
 
@@ -131,6 +191,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    resetSimulationRng(nextSeed);
     resetManagedState();
     setActiveView('Team Select');
   }
@@ -147,6 +210,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    resetSimulationRng(nextSeed);
     setActiveView('Dashboard');
   }
 
@@ -177,6 +243,7 @@ export function App() {
       awayTactics,
       homeRotation: homeIsUser ? rotation : null,
       awayRotation: awayIsUser ? rotation : null,
+      rng: simulationRng,
     });
 
     if (!homeIsUser && !awayIsUser) return { result, managedTeam, conditionReport: latestConditionReport, developmentReport: latestDevelopmentReport };
@@ -256,6 +323,7 @@ export function App() {
             awayTactics: matchup.awaySeed.standing.teamId === selectedTeam.id ? tactics : defaultTactics,
             homeRotation: matchup.homeSeed.standing.teamId === selectedTeam.id ? rotation : null,
             awayRotation: matchup.awaySeed.standing.teamId === selectedTeam.id ? rotation : null,
+            rng: simulationRng,
           },
         ));
 
@@ -301,6 +369,21 @@ export function App() {
           </div>
         </div>
 
+        <div className="density-switcher panel">
+          <p className="eyebrow">Display</p>
+          <div className="option-row">
+            {(['Normal', 'Compact', 'Ultra'] as const).map((mode) => (
+              <button
+                className={displayDensity === mode ? 'option-button active' : 'option-button'}
+                key={mode}
+                onClick={() => setDisplayDensity(mode)}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <nav className="sidebar-nav" aria-label="Main navigation">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -312,8 +395,8 @@ export function App() {
                 key={item.label}
                 onClick={() => item.enabled && setActiveView(item.label as ActiveView)}
               >
-                <Icon size={18} />
-                {item.label}
+                <Icon size={16} />
+                <span className="nav-label">{item.label}</span>
                 {!item.enabled && <span className="soon-pill">Soon</span>}
               </button>
             );
@@ -337,6 +420,8 @@ export function App() {
           <DashboardView
             boardConfidence={boardConfidence}
             currentRound={currentRound}
+            diagnostics={diagnostics}
+            developmentReady={developmentReady}
             handleResetSeason={handleResetSeason}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
             handleSimulateNextFixture={handleSimulateNextFixture}
@@ -349,9 +434,14 @@ export function App() {
             results={results}
             savedAt={savedAt}
             selectedTeam={selectedTeam}
+            tiredCount={tiredCount}
+            injuredCount={injuredCount}
             standings={standings}
             tactics={tactics}
             topPlayers={topPlayers}
+            managerTasks={managerTasks}
+            seasonObjective={seasonObjective}
+            objectiveProgress={objectiveProgress}
             userGameResult={userGameResult}
             userStanding={userStanding}
             userWonLatestGame={userWonLatestGame}
@@ -368,6 +458,7 @@ export function App() {
             selectedTeam={selectedTeam}
             standings={standings}
             userStanding={userStanding}
+            onNavigate={(view) => setActiveView(view)}
           />
         )}
 
@@ -464,6 +555,8 @@ function ScoreBlock({ team, score, colour }: { team: string; score: number; colo
 type DashboardViewProps = {
   boardConfidence: number;
   currentRound: number;
+  developmentReady: number;
+  diagnostics: ReturnType<typeof calculateSimulationDiagnostics>;
   handleResetSeason: () => void;
   handleSimulateCurrentRound: () => void;
   handleSimulateNextFixture: () => void;
@@ -476,9 +569,14 @@ type DashboardViewProps = {
   results: SimulatedGameResult[];
   savedAt: string | null;
   selectedTeam: Team;
+  tiredCount: number;
+  injuredCount: number;
   standings: ReturnType<typeof calculateStandings>;
   tactics: TacticalSettings;
   topPlayers: Team['roster'];
+  managerTasks: string[];
+  seasonObjective: { title: string; targetRank: number; summary: string };
+  objectiveProgress: number;
   userGameResult: SimulatedGameResult | null;
   userStanding: ReturnType<typeof calculateStandings>[number] | undefined;
   userWonLatestGame: boolean;
@@ -487,6 +585,8 @@ type DashboardViewProps = {
 function DashboardView({
   boardConfidence,
   currentRound,
+  developmentReady,
+  diagnostics,
   handleResetSeason,
   handleSimulateCurrentRound,
   handleSimulateNextFixture,
@@ -499,9 +599,14 @@ function DashboardView({
   results,
   savedAt,
   selectedTeam,
+  tiredCount,
+  injuredCount,
   standings,
   tactics,
   topPlayers,
+  managerTasks,
+  seasonObjective,
+  objectiveProgress,
   userGameResult,
   userStanding,
   userWonLatestGame,
@@ -557,6 +662,22 @@ function DashboardView({
         </span>
       </article>
 
+      <article className="panel stat-panel">
+        <p className="eyebrow">Sim Health</p>
+        <strong>{diagnostics.games ? Math.round(diagnostics.averageCombinedScore) : '—'}</strong>
+        <span className="muted">
+          {diagnostics.games
+            ? `Home W ${Math.round(diagnostics.homeWinRate * 100)}% · Upsets ${Math.round(diagnostics.upsetRate * 100)}% · Blowouts ${Math.round(diagnostics.blowoutRate * 100)}%`
+            : 'No games simulated yet'}
+        </span>
+      </article>
+
+      <article className="panel stat-panel">
+        <p className="eyebrow">Team Snapshot</p>
+        <strong>{injuredCount + tiredCount}</strong>
+        <span className="muted">{injuredCount} injured · {tiredCount} tired · {developmentReady} near growth</span>
+      </article>
+
       <article className="panel wide-panel save-panel">
         <div className="panel-header">
           <div>
@@ -569,6 +690,40 @@ function DashboardView({
           {savedAt ? `Last saved ${new Date(savedAt).toLocaleString()}` : 'No saved season yet.'}
         </p>
         <button className="secondary-action danger-action" onClick={handleResetSeason}>Reset Local Season</button>
+      </article>
+
+      <article className="panel wide-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Manager Tasks</p>
+            <h3>Recommended next moves</h3>
+          </div>
+          <span className="chip">{managerTasks.length || 1} item{managerTasks.length === 1 ? '' : 's'}</span>
+        </div>
+        <div className="assistant-notes">
+          {(managerTasks.length ? managerTasks : ['No urgent tasks — keep momentum and monitor fatigue']).map((task) => (
+            <div className="assistant-note" key={task}>
+              <strong>Action</strong>
+              <span>{task}</span>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel wide-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Season Objective</p>
+            <h3>{seasonObjective.title}</h3>
+          </div>
+          <span className="chip">{Math.round(objectiveProgress)}%</span>
+        </div>
+        <p className="muted">{seasonObjective.summary}</p>
+        <div className="meter-cell" aria-label={`Objective progress ${Math.round(objectiveProgress)} percent`}>
+          <div className="meter-track">
+            <div className="meter-fill" style={{ width: `${Math.max(0, Math.min(100, objectiveProgress))}%` }} />
+          </div>
+        </div>
       </article>
 
       {latestResult && (
@@ -676,26 +831,27 @@ function getOrdinalPosition(position: number) {
   return `${position}${suffix}`;
 }
 
-function calculateBoardConfidence({
-  standings,
-  selectedTeamId,
-  latestUserGame,
-}: {
-  standings: ReturnType<typeof calculateStandings>;
-  selectedTeamId: string;
-  latestUserGame: SimulatedGameResult | null;
-}) {
+function getSeasonObjective(reputation: number) {
+  if (reputation >= 82) {
+    return { title: 'Title Push', targetRank: 2, summary: 'Board expects a top-2 finish and deep playoff run.' };
+  }
+  if (reputation >= 74) {
+    return { title: 'Playoff Lock', targetRank: 4, summary: 'Board expects a stable playoff seed and positive momentum.' };
+  }
+  return { title: 'Build Year', targetRank: 6, summary: 'Board expects competitive progress and squad development.' };
+}
+
+function getObjectiveProgress(
+  standings: ReturnType<typeof calculateStandings>,
+  selectedTeamId: string,
+  targetRank: number,
+) {
   const teamIndex = standings.findIndex((standing) => standing.teamId === selectedTeamId);
+  if (teamIndex === -1) return 0;
 
-  if (teamIndex === -1) return 70;
-
-  const standing = standings[teamIndex];
   const rank = teamIndex + 1;
-  const totalTeams = standings.length;
-  const rankScore = Math.round(((totalTeams - rank) / Math.max(1, totalTeams - 1)) * 22);
-  const recordScore = Math.round((standing.winPercentage - 0.5) * 40);
-  const pdScore = Math.max(-8, Math.min(8, Math.round(standing.pointDifference / Math.max(1, standing.played * 2.5))));
-  const latestGameScore = latestUserGame ? (latestUserGame.winnerTeamId === selectedTeamId ? 4 : -5) : 0;
+  if (rank <= targetRank) return 100;
 
-  return Math.max(40, Math.min(96, 68 + rankScore + recordScore + pdScore + latestGameScore));
+  const distance = rank - targetRank;
+  return Math.max(0, 100 - distance * 15);
 }
