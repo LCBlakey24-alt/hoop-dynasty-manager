@@ -38,6 +38,7 @@ import type { Fixture, Player, PlayerConditionChange, PlayerDevelopmentChange, R
 
 type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Contracts' | 'Free Agents' | 'Board & Finance' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 type DisplayDensity = 'Normal' | 'Compact' | 'Ultra';
+type FocusMode = 'My Team' | 'League';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -84,6 +85,10 @@ export function App() {
     const saved = window.localStorage.getItem('hoop-dynasty-display-density');
     return saved === 'Normal' || saved === 'Compact' || saved === 'Ultra' ? saved : 'Compact';
   });
+  const [focusMode, setFocusMode] = useState<FocusMode>(() => {
+    if (typeof window === 'undefined') return 'My Team';
+    return window.localStorage.getItem('hoop-dynasty-focus-mode') === 'League' ? 'League' : 'My Team';
+  });
   const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
   const { rng: simulationRng, reset: resetSimulationRng, rngCallsRef } = useSimulationRng(
     initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed,
@@ -109,6 +114,10 @@ export function App() {
     document.body.classList.add(`density-${displayDensity.toLowerCase()}`);
     window.localStorage.setItem('hoop-dynasty-display-density', displayDensity);
   }, [displayDensity]);
+
+  useEffect(() => {
+    window.localStorage.setItem('hoop-dynasty-focus-mode', focusMode);
+  }, [focusMode]);
 
   const latestResult = [...playoffResults, ...results]
     .reverse()
@@ -142,6 +151,9 @@ export function App() {
   ].filter(Boolean) as string[];
   const seasonObjective = getSeasonObjective(selectedTeam.reputation);
   const objectiveProgress = getObjectiveProgress(standings, selectedTeam.id, seasonObjective.targetRank);
+  const scheduleFixtures = focusMode === 'My Team'
+    ? seasonFixtures.filter((fixture) => fixture.homeTeamId === selectedTeam.id || fixture.awayTeamId === selectedTeam.id)
+    : seasonFixtures;
   const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId, effectiveTeams) : null;
   const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId, effectiveTeams) : null;
   const nextMatchupLabel = nextHomeTeam && nextAwayTeam
@@ -383,6 +395,20 @@ export function App() {
             ))}
           </div>
         </div>
+        <div className="density-switcher panel">
+          <p className="eyebrow">Focus</p>
+          <div className="option-row">
+            {(['My Team', 'League'] as const).map((mode) => (
+              <button
+                className={focusMode === mode ? 'option-button active' : 'option-button'}
+                key={mode}
+                onClick={() => setFocusMode(mode)}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
           {navItems.map((item) => {
@@ -480,8 +506,10 @@ export function App() {
         {activeView === 'Schedule' && (
           <ScheduleScreen
             currentRound={currentRound}
-            fixtures={seasonFixtures}
+            fixtures={scheduleFixtures}
+            focusMode={focusMode}
             results={results}
+            selectedTeamId={selectedTeam.id}
             teams={effectiveTeams}
             totalRounds={totalRounds}
           />

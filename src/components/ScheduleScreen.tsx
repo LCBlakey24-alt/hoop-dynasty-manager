@@ -4,16 +4,20 @@ import type { SimulatedGameResult } from '../game/simulateGame';
 type ScheduleScreenProps = {
   currentRound: number;
   fixtures: Fixture[];
+  focusMode: 'My Team' | 'League';
   results: SimulatedGameResult[];
+  selectedTeamId: string;
   teams: Team[];
   totalRounds: number;
 };
 
-export function ScheduleScreen({ currentRound, fixtures, results, teams, totalRounds }: ScheduleScreenProps) {
+export function ScheduleScreen({ currentRound, fixtures, focusMode, results, selectedTeamId, teams, totalRounds }: ScheduleScreenProps) {
   const groupedFixtures = groupFixturesByRound(fixtures);
   const playedCount = results.length;
   const nextFixture = fixtures.find((fixture) => !findResultForFixture(fixture, results));
-  const latestResult = results.at(-1) ?? null;
+  const latestResult = focusMode === 'My Team'
+    ? [...results].reverse().find((result) => result.homeTeamId === selectedTeamId || result.awayTeamId === selectedTeamId) ?? null
+    : results.at(-1) ?? null;
   const currentRoundFixtures = fixtures.filter((fixture) => fixture.round === currentRound);
   const currentRoundPlayed = countPlayedFixtures(currentRoundFixtures, results);
 
@@ -22,8 +26,8 @@ export function ScheduleScreen({ currentRound, fixtures, results, teams, totalRo
       <div className="screen-heading">
         <div>
           <p className="eyebrow">Season Schedule</p>
-          <h3>BSBL regular season</h3>
-          <p className="muted">Track every regular season fixture, simulated result and upcoming round.</p>
+          <h3>{focusMode === 'My Team' ? 'My team schedule' : 'BSBL regular season'}</h3>
+          <p className="muted">{focusMode === 'My Team' ? 'Track only your team fixtures, results and next game prep.' : 'Track every regular season fixture, simulated result and upcoming round.'}</p>
         </div>
         <span className="chip">{playedCount}/{fixtures.length} games played</span>
       </div>
