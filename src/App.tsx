@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { ContractsScreen } from './components/ContractsScreen';
@@ -26,6 +26,7 @@ import { applyPostGameDevelopment } from './game/playerDevelopment';
 import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { createDefaultRotation, normaliseRotation } from './game/rotation';
+import { createSeededRng, generateSeed } from './game/rng';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
@@ -73,6 +74,8 @@ export function App() {
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
+  const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
+  const simulationRng = useRef(createSeededRng(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed));
 
   const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
   const rotation = normaliseRotation(selectedTeam, rotationPlan);
@@ -84,9 +87,9 @@ export function App() {
   const hasSave = Boolean(initialSave) || results.length > 0 || playoffResults.length > 0;
 
   useEffect(() => {
-    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport);
+    const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed);
     setSavedAt(save.savedAt);
-  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport]);
+  }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed]);
 
   const latestResult = playoffResults.at(-1) ?? results.at(-1) ?? null;
   const standings = calculateStandings(effectiveTeams, results);
@@ -121,6 +124,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    simulationRng.current = createSeededRng(nextSeed);
     resetManagedState();
   }
 
@@ -131,6 +137,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    simulationRng.current = createSeededRng(nextSeed);
     resetManagedState();
     setActiveView('Team Select');
   }
@@ -147,6 +156,9 @@ export function App() {
     setTactics(defaultTactics);
     setSavedAt(null);
     setTrainingFocus('Balanced');
+    const nextSeed = generateSeed();
+    setRngSeed(nextSeed);
+    simulationRng.current = createSeededRng(nextSeed);
     setActiveView('Dashboard');
   }
 
@@ -177,6 +189,7 @@ export function App() {
       awayTactics,
       homeRotation: homeIsUser ? rotation : null,
       awayRotation: awayIsUser ? rotation : null,
+      rng: simulationRng.current,
     });
 
     if (!homeIsUser && !awayIsUser) return { result, managedTeam, conditionReport: latestConditionReport, developmentReport: latestDevelopmentReport };
@@ -256,6 +269,7 @@ export function App() {
             awayTactics: matchup.awaySeed.standing.teamId === selectedTeam.id ? tactics : defaultTactics,
             homeRotation: matchup.homeSeed.standing.teamId === selectedTeam.id ? rotation : null,
             awayRotation: matchup.awaySeed.standing.teamId === selectedTeam.id ? rotation : null,
+            rng: simulationRng.current,
           },
         ));
 
