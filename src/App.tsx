@@ -429,6 +429,7 @@ export function App() {
             selectedTeam={selectedTeam}
             standings={standings}
             userStanding={userStanding}
+            onNavigate={(view) => setActiveView(view)}
           />
         )}
 
