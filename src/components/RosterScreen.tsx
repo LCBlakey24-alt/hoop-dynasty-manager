@@ -23,6 +23,9 @@ export function RosterScreen({ team }: RosterScreenProps) {
   const bestProspect = [...team.roster].sort((a, b) => b.potential - a.potential)[0];
   const squadLeader = [...team.roster].sort((a, b) => b.overall - a.overall)[0];
   const starters = team.roster.filter((player) => player.role === 'Starter').length;
+  const tiredPlayers = team.roster.filter((player) => (player.fatigue ?? 0) >= 65);
+  const injuredPlayers = team.roster.filter((player) => player.injury);
+  const readyToGrow = team.roster.filter((player) => (player.developmentProgress ?? 0) >= 75 && player.overall < player.potential);
   const attributeLeaders = featuredAttributes.map((attribute) => getAttributeLeader(team.roster, attribute));
 
   return (
@@ -39,8 +42,50 @@ export function RosterScreen({ team }: RosterScreenProps) {
       <section className="roster-summary-grid">
         <SummaryCard label="Avg Overall" value={averageOverall.toString()} helper="Current squad level" />
         <SummaryCard label="Avg Potential" value={averagePotential.toString()} helper="Future squad ceiling" />
-        <SummaryCard label="Squad Leader" value={squadLeader.name} helper={`${squadLeader.overall} OVR · ${squadLeader.position}`} />
-        <SummaryCard label="Top Prospect" value={bestProspect.name} helper={`${bestProspect.potential} POT · Age ${bestProspect.age}`} />
+        <SummaryCard label="Fitness Watch" value={(tiredPlayers.length + injuredPlayers.length).toString()} helper={`${tiredPlayers.length} tired · ${injuredPlayers.length} injured`} />
+        <SummaryCard label="Near Growth" value={readyToGrow.length.toString()} helper="75%+ development" />
+      </section>
+
+      <section className="result-grid">
+        <article className="panel roster-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Squad Notes</p>
+              <h3>Assistant view</h3>
+            </div>
+            <span className="chip">Staff report</span>
+          </div>
+
+          <div className="assistant-notes">
+            {createSquadNotes(team).map((note) => (
+              <div className="assistant-note" key={note.title}>
+                <strong>{note.title}</strong>
+                <span>{note.body}</span>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel roster-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Core Players</p>
+              <h3>Leadership and ceiling</h3>
+            </div>
+            <span className="chip">Squad view</span>
+          </div>
+
+          <div className="assistant-notes">
+            <div className="assistant-note">
+              <strong>Squad Leader</strong>
+              <span>{squadLeader.name} leads the roster at {squadLeader.overall} OVR.</span>
+            </div>
+            <div className="assistant-note">
+              <strong>Top Prospect</strong>
+              <span>{bestProspect.name} has the highest ceiling at {bestProspect.potential} POT.</span>
+            </div>
+          </div>
+        </article>
       </section>
 
       <article className="panel roster-panel">
@@ -168,7 +213,7 @@ function RosterRow({ player }: RosterRowProps) {
     <div className="roster-row">
       <div className="roster-player-cell">
         <strong>{player.name}</strong>
-        <span>{player.archetype}</span>
+        <span>{player.archetype} · {getPlayerStatusTag(player)}</span>
       </div>
       <span className="position-pill">{player.position}</span>
       <span>{player.age}</span>
@@ -194,6 +239,49 @@ function Meter({ value }: MeterProps) {
       <span>{value}</span>
     </div>
   );
+}
+
+function createSquadNotes(team: Team) {
+  const injuredPlayers = team.roster.filter((player) => player.injury);
+  const tiredPlayers = team.roster.filter((player) => (player.fatigue ?? 0) >= 65);
+  const nearGrowth = team.roster.filter((player) => (player.developmentProgress ?? 0) >= 75 && player.overall < player.potential);
+  const unfulfilledProspects = team.roster
+    .filter((player) => player.potential - player.overall >= 10)
+    .sort((a, b) => b.potential - b.overall - (a.potential - a.overall));
+  const notes = [];
+
+  if (injuredPlayers.length > 0) {
+    notes.push({ title: 'Medical watch', body: `${injuredPlayers[0].name} is carrying ${injuredPlayers[0].injury?.type}. Protect minutes until they recover.` });
+  }
+
+  if (tiredPlayers.length > 0) {
+    notes.push({ title: 'Fatigue watch', body: `${tiredPlayers[0].name} is at ${tiredPlayers[0].fatigue ?? 0} fatigue. Consider rest or a lower workload.` });
+  }
+
+  if (nearGrowth.length > 0) {
+    notes.push({ title: 'Development push', body: `${nearGrowth[0].name} is close to an OVR improvement. Meaningful minutes could help.` });
+  }
+
+  if (unfulfilledProspects.length > 0) {
+    notes.push({ title: 'Upside player', body: `${unfulfilledProspects[0].name} has a +${unfulfilledProspects[0].potential - unfulfilledProspects[0].overall} potential gap. Build a pathway if possible.` });
+  }
+
+  if (notes.length === 0) {
+    notes.push({ title: 'Squad stable', body: 'No major fitness or development concerns. Maintain rotation balance and protect morale.' });
+  }
+
+  return notes;
+}
+
+function getPlayerStatusTag(player: Player) {
+  if (player.injury) return `${player.injury.severity}: ${player.injury.type}`;
+  if ((player.fatigue ?? 0) >= 80) return 'Exhausted';
+  if ((player.fatigue ?? 0) >= 65) return 'Tired';
+  if ((player.developmentProgress ?? 0) >= 75 && player.overall < player.potential) return 'Near growth';
+  if (player.potential - player.overall >= 10) return 'High upside';
+  if (player.form >= 78) return 'In form';
+  if (player.form <= 60) return 'Cold form';
+  return 'Stable';
 }
 
 function getAttributeLeader(players: Player[], attribute: AttributeKey) {
