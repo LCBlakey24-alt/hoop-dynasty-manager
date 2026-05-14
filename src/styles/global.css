@@ -261,6 +261,29 @@ button:disabled {
   transform: translateY(-1px);
 }
 
+.roster-row,
+.box-score-row,
+.league-row,
+.fixture-row {
+  min-height: 32px;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+.roster-row strong,
+.box-score-row strong,
+.league-row strong,
+.fixture-row strong {
+  font-size: 0.84rem;
+}
+
+.roster-row span,
+.box-score-row span,
+.league-row span,
+.fixture-row span {
+  font-size: 0.72rem;
+}
+
 .primary-action:hover {
   box-shadow: 0 18px 40px rgba(249, 115, 22, 0.34);
 }

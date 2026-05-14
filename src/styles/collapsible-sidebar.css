@@ -43,10 +43,6 @@ body.sidebar-is-collapsed .sidebar {
   overflow: hidden;
 }
 
-body.sidebar-is-collapsed .sidebar {
-  overflow: hidden;
-}
-
 @media (max-width: 980px) {
   body.sidebar-is-collapsed .app-shell {
     grid-template-columns: 1fr;

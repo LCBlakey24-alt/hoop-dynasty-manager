@@ -79,10 +79,11 @@ export function App() {
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
   const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
   const rngCallsRef = useRef<number>(initialSave?.rngCalls ?? 0);
+  const rngReplayAppliedRef = useRef(false);
   const simulationRngBase = useRef(createSeededRng(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed));
-  if (rngCallsRef.current > 0) {
+  if (!rngReplayAppliedRef.current && rngCallsRef.current > 0) {
     for (let draw = 0; draw < rngCallsRef.current; draw += 1) simulationRngBase.current();
-    rngCallsRef.current = 0;
+    rngReplayAppliedRef.current = true;
   }
   const simulationRng = useRef(() => {
     rngCallsRef.current += 1;
