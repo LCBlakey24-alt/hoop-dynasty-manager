@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { ContractsScreen } from './components/ContractsScreen';
@@ -224,7 +224,12 @@ export function App() {
     setTrainingFocus('Balanced');
     const nextSeed = generateSeed();
     setRngSeed(nextSeed);
-    resetSimulationRng(nextSeed);
+    rngCallsRef.current = 0;
+    simulationRngBase.current = createSeededRng(nextSeed);
+    simulationRng.current = () => {
+      rngCallsRef.current += 1;
+      return simulationRngBase.current();
+    };
     setActiveView('Dashboard');
   }
 
