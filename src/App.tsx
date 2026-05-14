@@ -27,15 +27,18 @@ import { applyPostGameDevelopment } from './game/playerDevelopment';
 import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { createDefaultRotation, normaliseRotation } from './game/rotation';
-import { createSeededRng, generateSeed } from './game/rng';
+import { generateSeed } from './game/rng';
 import { runSimulationHarness } from './game/simulationHarness';
 import { calculateSimulationDiagnostics } from './game/simulationDiagnostics';
+import { useSimulationRng } from './game/useSimulationRng';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
 import type { Fixture, Player, PlayerConditionChange, PlayerDevelopmentChange, RotationPlan, Team } from './types/basketball';
 
 type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Contracts' | 'Free Agents' | 'Board & Finance' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
+type DisplayDensity = 'Normal' | 'Compact' | 'Ultra';
+type FocusMode = 'My Team' | 'League';
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -77,18 +80,20 @@ export function App() {
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
-  const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
-  const rngCallsRef = useRef<number>(initialSave?.rngCalls ?? 0);
-  const rngReplayAppliedRef = useRef(false);
-  const simulationRngBase = useRef(createSeededRng(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed));
-  if (!rngReplayAppliedRef.current && rngCallsRef.current > 0) {
-    for (let draw = 0; draw < rngCallsRef.current; draw += 1) simulationRngBase.current();
-    rngReplayAppliedRef.current = true;
-  }
-  const simulationRng = useRef(() => {
-    rngCallsRef.current += 1;
-    return simulationRngBase.current();
+  const [displayDensity, setDisplayDensity] = useState<DisplayDensity>(() => {
+    if (typeof window === 'undefined') return 'Compact';
+    const saved = window.localStorage.getItem('hoop-dynasty-display-density');
+    return saved === 'Normal' || saved === 'Compact' || saved === 'Ultra' ? saved : 'Compact';
   });
+  const [focusMode, setFocusMode] = useState<FocusMode>(() => {
+    if (typeof window === 'undefined') return 'My Team';
+    return window.localStorage.getItem('hoop-dynasty-focus-mode') === 'League' ? 'League' : 'My Team';
+  });
+  const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
+  const { rng: simulationRng, reset: resetSimulationRng, rngCallsRef } = useSimulationRng(
+    initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed,
+    initialSave?.rngCalls ?? 0,
+  );
 
   const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
   const rotation = normaliseRotation(selectedTeam, rotationPlan);
@@ -103,6 +108,16 @@ export function App() {
     const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed, rngCallsRef.current);
     setSavedAt(save.savedAt);
   }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed]);
+
+  useEffect(() => {
+    document.body.classList.remove('density-normal', 'density-compact', 'density-ultra');
+    document.body.classList.add(`density-${displayDensity.toLowerCase()}`);
+    window.localStorage.setItem('hoop-dynasty-display-density', displayDensity);
+  }, [displayDensity]);
+
+  useEffect(() => {
+    window.localStorage.setItem('hoop-dynasty-focus-mode', focusMode);
+  }, [focusMode]);
 
   const latestResult = [...playoffResults, ...results]
     .reverse()
@@ -136,6 +151,9 @@ export function App() {
   ].filter(Boolean) as string[];
   const seasonObjective = getSeasonObjective(selectedTeam.reputation);
   const objectiveProgress = getObjectiveProgress(standings, selectedTeam.id, seasonObjective.targetRank);
+  const scheduleFixtures = focusMode === 'My Team'
+    ? seasonFixtures.filter((fixture) => fixture.homeTeamId === selectedTeam.id || fixture.awayTeamId === selectedTeam.id)
+    : seasonFixtures;
   const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId, effectiveTeams) : null;
   const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId, effectiveTeams) : null;
   const nextMatchupLabel = nextHomeTeam && nextAwayTeam
@@ -174,12 +192,7 @@ export function App() {
     setTrainingFocus('Balanced');
     const nextSeed = generateSeed();
     setRngSeed(nextSeed);
-    rngCallsRef.current = 0;
-    simulationRngBase.current = createSeededRng(nextSeed);
-    simulationRng.current = () => {
-      rngCallsRef.current += 1;
-      return simulationRngBase.current();
-    };
+    resetSimulationRng(nextSeed);
     resetManagedState();
   }
 
@@ -192,12 +205,7 @@ export function App() {
     setTrainingFocus('Balanced');
     const nextSeed = generateSeed();
     setRngSeed(nextSeed);
-    rngCallsRef.current = 0;
-    simulationRngBase.current = createSeededRng(nextSeed);
-    simulationRng.current = () => {
-      rngCallsRef.current += 1;
-      return simulationRngBase.current();
-    };
+    resetSimulationRng(nextSeed);
     resetManagedState();
     setActiveView('Team Select');
   }
@@ -252,7 +260,7 @@ export function App() {
       awayTactics,
       homeRotation: homeIsUser ? rotation : null,
       awayRotation: awayIsUser ? rotation : null,
-      rng: simulationRng.current,
+      rng: simulationRng,
     });
 
     if (!homeIsUser && !awayIsUser) return { result, managedTeam, conditionReport: latestConditionReport, developmentReport: latestDevelopmentReport };
@@ -332,7 +340,7 @@ export function App() {
             awayTactics: matchup.awaySeed.standing.teamId === selectedTeam.id ? tactics : defaultTactics,
             homeRotation: matchup.homeSeed.standing.teamId === selectedTeam.id ? rotation : null,
             awayRotation: matchup.awaySeed.standing.teamId === selectedTeam.id ? rotation : null,
-            rng: simulationRng.current,
+            rng: simulationRng,
           },
         ));
 
@@ -375,6 +383,35 @@ export function App() {
           <div>
             <p className="eyebrow">Prototype 0.1</p>
             <h1>Hoop Dynasty</h1>
+          </div>
+        </div>
+
+        <div className="density-switcher panel">
+          <p className="eyebrow">Display</p>
+          <div className="option-row">
+            {(['Normal', 'Compact', 'Ultra'] as const).map((mode) => (
+              <button
+                className={displayDensity === mode ? 'option-button active' : 'option-button'}
+                key={mode}
+                onClick={() => setDisplayDensity(mode)}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="density-switcher panel">
+          <p className="eyebrow">Focus</p>
+          <div className="option-row">
+            {(['My Team', 'League'] as const).map((mode) => (
+              <button
+                className={focusMode === mode ? 'option-button active' : 'option-button'}
+                key={mode}
+                onClick={() => setFocusMode(mode)}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -474,8 +511,10 @@ export function App() {
         {activeView === 'Schedule' && (
           <ScheduleScreen
             currentRound={currentRound}
-            fixtures={seasonFixtures}
+            fixtures={scheduleFixtures}
+            focusMode={focusMode}
             results={results}
+            selectedTeamId={selectedTeam.id}
             teams={effectiveTeams}
             totalRounds={totalRounds}
           />

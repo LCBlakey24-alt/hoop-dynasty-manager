@@ -10,6 +10,18 @@
   font-size: 14px;
 }
 
+body.density-normal {
+  font-size: 16px;
+}
+
+body.density-compact {
+  font-size: 14px;
+}
+
+body.density-ultra {
+  font-size: 12px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -89,6 +101,11 @@ button:disabled {
 .sidebar-nav {
   display: grid;
   gap: 0.35rem;
+}
+
+.density-switcher {
+  margin-bottom: 0.6rem;
+  padding: 0.45rem;
 }
 
 .nav-item {
