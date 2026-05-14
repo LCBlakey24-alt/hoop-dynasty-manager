@@ -36,10 +36,14 @@ export function PlayoffsScreen({
   const semiFinals = createSemiFinalMatchups(standings, playoffResults);
   const final = createFinalMatchup(standings, playoffResults);
   const champion = getChampion(standings, playoffResults);
-  const userQualified = playoffSeeds.some((seed) => seed.standing.teamId === userTeamId);
+  const userSeed = playoffSeeds.find((seed) => seed.standing.teamId === userTeamId);
+  const userQualified = Boolean(userSeed);
+  const topSeed = playoffSeeds[0];
+  const lowestSeed = playoffSeeds.at(-1);
   const quarterFinalsComplete = quarterFinals.length > 0 && quarterFinals.every((matchup) => findMatchupResult(matchup, playoffResults));
   const semiFinalsComplete = semiFinals.length > 0 && semiFinals.every((matchup) => findMatchupResult(matchup, playoffResults));
   const finalComplete = !!final && !!findMatchupResult(final, playoffResults);
+  const playoffState = getPlayoffState(regularSeasonComplete, quarterFinalsComplete, semiFinalsComplete, finalComplete, Boolean(champion));
 
   if (!regularSeasonComplete) {
     return (
@@ -60,11 +64,28 @@ export function PlayoffsScreen({
           <SummaryCard label="Your Status" value={userQualified ? 'In' : 'Out'} helper="Based on current table" />
         </section>
 
-        <article className="panel playoff-panel">
-          <p className="eyebrow">Current Top 8</p>
-          <h3>Projected qualifiers</h3>
-          <SeedList seeds={playoffSeeds} userTeamId={userTeamId} />
-        </article>
+        <section className="result-grid">
+          <article className="panel playoff-panel">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Playoff Picture</p>
+                <h3>Current projection</h3>
+              </div>
+              <span className="chip">Locked after season</span>
+            </div>
+            <div className="assistant-notes">
+              <PlayoffNote title="Top seed" body={topSeed ? `${topSeed.standing.teamName} currently lead the playoff race.` : 'No playoff race yet.'} />
+              <PlayoffNote title="Cutline" body={standings[7] ? `${standings[7].teamName} currently hold the final playoff place.` : 'Top 8 will qualify once the table forms.'} />
+              <PlayoffNote title="Your path" body={userQualified ? `Your club is currently seed ${userSeed?.seed}.` : 'Your club is currently outside the playoff places.'} />
+            </div>
+          </article>
+
+          <article className="panel playoff-panel">
+            <p className="eyebrow">Current Top 8</p>
+            <h3>Projected qualifiers</h3>
+            <SeedList seeds={playoffSeeds} userTeamId={userTeamId} />
+          </article>
+        </section>
       </section>
     );
   }
@@ -77,14 +98,46 @@ export function PlayoffsScreen({
           <h3>{champion ? `${champion.standing.teamName} are champions` : 'Postseason bracket'}</h3>
           <p className="muted">The top 8 regular season teams have qualified. Simulate each stage to crown the BSBL champion.</p>
         </div>
-        <span className="chip">{champion ? 'Champion crowned' : 'Regular season complete'}</span>
+        <span className="chip">{playoffState}</span>
       </div>
 
       <section className="playoff-summary-grid">
-        <SummaryCard label="Qualified" value="8" helper="Teams in playoff bracket" />
-        <SummaryCard label="Your Status" value={userQualified ? 'Qualified' : 'Eliminated'} helper="Based on final table" />
-        <SummaryCard label="Semi-Finals" value={semiFinalsComplete ? 'Complete' : semiFinals.length ? 'Ready' : 'Locked'} helper="Generated after QFs" />
+        <SummaryCard label="Top Seed" value={topSeed?.standing.shortName ?? '—'} helper={topSeed ? topSeed.standing.teamName : 'Awaiting bracket'} />
+        <SummaryCard label="Lowest Seed" value={lowestSeed?.standing.shortName ?? '—'} helper={lowestSeed ? lowestSeed.standing.teamName : 'Awaiting bracket'} />
+        <SummaryCard label="Your Status" value={userQualified ? `Seed ${userSeed?.seed}` : 'Eliminated'} helper="Based on final table" />
         <SummaryCard label="Champion" value={champion?.standing.shortName ?? 'TBD'} helper={champion ? champion.standing.teamName : 'Final pending'} />
+      </section>
+
+      <section className="result-grid">
+        <article className="panel playoff-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Next Action</p>
+              <h3>Postseason control</h3>
+            </div>
+            <span className="chip">{getNextActionLabel(quarterFinalsComplete, semiFinalsComplete, finalComplete, Boolean(champion))}</span>
+          </div>
+
+          <div className="assistant-notes">
+            <PlayoffNote title="Bracket status" body={getBracketStatusText(quarterFinalsComplete, semiFinalsComplete, finalComplete, Boolean(champion))} />
+            <PlayoffNote title="User club" body={userQualified ? `Your club qualified as seed ${userSeed?.seed}.` : 'Your club missed the postseason and can only watch the bracket unfold.'} />
+          </div>
+        </article>
+
+        <article className="panel playoff-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Race Story</p>
+              <h3>Seeds and threats</h3>
+            </div>
+            <span className="chip">Scout view</span>
+          </div>
+
+          <div className="assistant-notes">
+            <PlayoffNote title="Favourite" body={topSeed ? `${topSeed.standing.teamName} enter as the top seed with a ${topSeed.standing.wins}-${topSeed.standing.losses} record.` : 'No favourite yet.'} />
+            <PlayoffNote title="Dark horse" body={lowestSeed ? `${lowestSeed.standing.teamName} are the lowest seed but still alive in the bracket.` : 'No dark horse yet.'} />
+          </div>
+        </article>
       </section>
 
       {!quarterFinalsComplete && (
@@ -187,6 +240,15 @@ function SummaryCard({ label, value, helper }: SummaryCardProps) {
   );
 }
 
+function PlayoffNote({ body, title }: { body: string; title: string }) {
+  return (
+    <div className="assistant-note">
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </div>
+  );
+}
+
 type SeedListProps = {
   seeds: ReturnType<typeof getPlayoffSeeds>;
   userTeamId: string;
@@ -232,4 +294,27 @@ function findMatchupResult(matchup: PlayoffMatchup, playoffResults: SimulatedGam
 
 function countCompleted(matchups: PlayoffMatchup[], playoffResults: SimulatedGameResult[]) {
   return matchups.filter((matchup) => findMatchupResult(matchup, playoffResults)).length;
+}
+
+function getPlayoffState(regularSeasonComplete: boolean, quarterFinalsComplete: boolean, semiFinalsComplete: boolean, finalComplete: boolean, hasChampion: boolean) {
+  if (!regularSeasonComplete) return 'Race active';
+  if (hasChampion) return 'Champion crowned';
+  if (finalComplete) return 'Final complete';
+  if (semiFinalsComplete) return 'Final ready';
+  if (quarterFinalsComplete) return 'Semi-finals ready';
+  return 'Quarter-finals ready';
+}
+
+function getNextActionLabel(quarterFinalsComplete: boolean, semiFinalsComplete: boolean, finalComplete: boolean, hasChampion: boolean) {
+  if (hasChampion || finalComplete) return 'Complete';
+  if (semiFinalsComplete) return 'Sim final';
+  if (quarterFinalsComplete) return 'Sim semis';
+  return 'Sim quarters';
+}
+
+function getBracketStatusText(quarterFinalsComplete: boolean, semiFinalsComplete: boolean, finalComplete: boolean, hasChampion: boolean) {
+  if (hasChampion || finalComplete) return 'The postseason is complete and the champion has been crowned.';
+  if (semiFinalsComplete) return 'The finalists are set. One game remains to decide the title.';
+  if (quarterFinalsComplete) return 'Quarter-finals are complete. Semi-finals are ready to simulate.';
+  return 'Quarter-finals are ready. Simulate the opening stage to begin the postseason.';
 }
