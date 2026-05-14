@@ -46,7 +46,11 @@ export function InboxScreen({
     standings,
     userStanding,
   });
-  const highPriorityCount = messages.filter((message) => message.priority === 'High').length;
+  const highPriorityMessages = messages.filter((message) => message.priority === 'High');
+  const medicalMessages = messages.filter((message) => message.type === 'Medical');
+  const developmentMessages = messages.filter((message) => message.type === 'Development');
+  const boardMessages = messages.filter((message) => message.type === 'Board');
+  const nextAction = getRecommendedAction(messages);
 
   return (
     <section className="match-result-screen">
@@ -56,8 +60,51 @@ export function InboxScreen({
           <h3>Club updates</h3>
           <p className="muted">Key messages from your staff, medical team, board and match analysts.</p>
         </div>
-        <span className="chip">{highPriorityCount ? `${highPriorityCount} urgent` : 'Up to date'}</span>
+        <span className="chip">{highPriorityMessages.length ? `${highPriorityMessages.length} urgent` : 'Up to date'}</span>
       </div>
+
+      <section className="league-summary-grid">
+        <SummaryCard label="Urgent" value={highPriorityMessages.length.toString()} helper="High-priority messages" />
+        <SummaryCard label="Medical" value={medicalMessages.length.toString()} helper="Fitness and injury updates" />
+        <SummaryCard label="Development" value={developmentMessages.length.toString()} helper="Player growth notes" />
+        <SummaryCard label="Board" value={boardMessages.length.toString()} helper="Confidence and pressure" />
+      </section>
+
+      <section className="result-grid">
+        <article className="panel result-detail-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Recommended Action</p>
+              <h3>{nextAction.title}</h3>
+            </div>
+            <span className={nextAction.priority === 'High' ? 'chip warning' : 'chip'}>{nextAction.priority}</span>
+          </div>
+          <div className="assistant-notes">
+            <div className="assistant-note">
+              <strong>{nextAction.title}</strong>
+              <span>{nextAction.body}</span>
+            </div>
+          </div>
+        </article>
+
+        <article className="panel result-detail-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Priority Stack</p>
+              <h3>What matters most</h3>
+            </div>
+            <span className="chip">Sorted</span>
+          </div>
+          <div className="assistant-notes">
+            {messages.slice(0, 3).map((message) => (
+              <div className="assistant-note" key={`priority-${message.id}`}>
+                <strong>{message.title}</strong>
+                <span>{message.type} · {message.priority} · {message.tag}</span>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
 
       <article className="panel result-detail-panel">
         <div className="panel-header">
@@ -213,6 +260,16 @@ function createInboxMessages({
   return messages.sort((a, b) => getPriorityWeight(b.priority) - getPriorityWeight(a.priority));
 }
 
+function SummaryCard({ label, value, helper }: { label: string; value: string; helper: string }) {
+  return (
+    <article className="panel league-summary-card">
+      <p className="eyebrow">{label}</p>
+      <strong>{value}</strong>
+      <span className="muted">{helper}</span>
+    </article>
+  );
+}
+
 function StatPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="stat-block">
@@ -220,6 +277,25 @@ function StatPill({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
     </div>
   );
+}
+
+function getRecommendedAction(messages: InboxMessage[]) {
+  const urgent = messages.find((message) => message.priority === 'High');
+  if (urgent) {
+    return { title: urgent.title, body: urgent.body, priority: urgent.priority };
+  }
+
+  const fixture = messages.find((message) => message.type === 'Fixture');
+  if (fixture) {
+    return { title: fixture.title, body: fixture.body, priority: fixture.priority };
+  }
+
+  const board = messages.find((message) => message.type === 'Board');
+  if (board) {
+    return { title: board.title, body: board.body, priority: board.priority };
+  }
+
+  return { title: 'No urgent action', body: 'Your inbox has no immediate high-priority decisions.', priority: 'Low' as const };
 }
 
 function getPriorityWeight(priority: InboxMessage['priority']) {
