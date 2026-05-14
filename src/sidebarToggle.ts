@@ -10,12 +10,23 @@ function hasSidebarLayout() {
 }
 
 function setCollapsedState(isCollapsed: boolean) {
-  document.body.classList.toggle('sidebar-is-collapsed', isCollapsed && hasSidebarLayout());
+  const shouldCollapse = isCollapsed && hasSidebarLayout();
+
+  if (document.body.classList.contains('sidebar-is-collapsed') !== shouldCollapse) {
+    document.body.classList.toggle('sidebar-is-collapsed', shouldCollapse);
+  }
+
   window.localStorage.setItem(STORAGE_KEY, String(isCollapsed));
 }
 
 function getExistingToggle() {
   return document.querySelector<HTMLButtonElement>(TOGGLE_SELECTOR);
+}
+
+function setAttributeIfChanged(element: HTMLElement, name: string, value: string) {
+  if (element.getAttribute(name) !== value) {
+    element.setAttribute(name, value);
+  }
 }
 
 function updateToggleVisibility() {
@@ -24,16 +35,29 @@ function updateToggleVisibility() {
   if (!button) return;
 
   const shouldShow = hasSidebarLayout();
-  button.hidden = !shouldShow;
-  button.setAttribute('aria-hidden', String(!shouldShow));
+
+  if (button.hidden === shouldShow) {
+    button.hidden = !shouldShow;
+  }
+
+  setAttributeIfChanged(button, 'aria-hidden', String(!shouldShow));
 
   if (!shouldShow) {
-    document.body.classList.remove('sidebar-is-collapsed');
+    if (document.body.classList.contains('sidebar-is-collapsed')) {
+      document.body.classList.remove('sidebar-is-collapsed');
+    }
     return;
   }
 
-  document.body.classList.toggle('sidebar-is-collapsed', getInitialCollapsedState());
-  button.textContent = document.body.classList.contains('sidebar-is-collapsed') ? '›' : '‹';
+  const shouldCollapse = getInitialCollapsedState();
+  if (document.body.classList.contains('sidebar-is-collapsed') !== shouldCollapse) {
+    document.body.classList.toggle('sidebar-is-collapsed', shouldCollapse);
+  }
+
+  const nextText = document.body.classList.contains('sidebar-is-collapsed') ? '›' : '‹';
+  if (button.textContent !== nextText) {
+    button.textContent = nextText;
+  }
 }
 
 function createSidebarToggle() {
@@ -43,7 +67,10 @@ function createSidebarToggle() {
   button.setAttribute('aria-label', 'Toggle sidebar navigation');
 
   const setButtonText = () => {
-    button.textContent = document.body.classList.contains('sidebar-is-collapsed') ? '›' : '‹';
+    const nextText = document.body.classList.contains('sidebar-is-collapsed') ? '›' : '‹';
+    if (button.textContent !== nextText) {
+      button.textContent = nextText;
+    }
   };
 
   button.addEventListener('click', () => {
@@ -62,19 +89,33 @@ function createSidebarToggle() {
 export function initialiseSidebarToggle() {
   if (typeof window === 'undefined') return;
 
-  window.requestAnimationFrame(() => {
-    if (!getExistingToggle()) {
-      createSidebarToggle();
-    }
+  let updateQueued = false;
 
-    updateToggleVisibility();
-  });
+  const queueVisibilityUpdate = () => {
+    if (updateQueued) return;
+
+    updateQueued = true;
+    window.requestAnimationFrame(() => {
+      updateQueued = false;
+
+      if (!getExistingToggle()) {
+        createSidebarToggle();
+      }
+
+      updateToggleVisibility();
+    });
+  };
+
+  queueVisibilityUpdate();
+
+  const appRoot = document.getElementById('root');
+  if (!appRoot) return;
 
   const observer = new MutationObserver(() => {
-    updateToggleVisibility();
+    queueVisibilityUpdate();
   });
 
-  observer.observe(document.body, {
+  observer.observe(appRoot, {
     childList: true,
     subtree: true,
   });
