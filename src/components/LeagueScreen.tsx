@@ -10,8 +10,15 @@ type LeagueScreenProps = {
 
 export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }: LeagueScreenProps) {
   const userStanding = standings.find((standing) => standing.teamId === userTeamId);
+  const userRank = userStanding ? standings.indexOf(userStanding) + 1 : 0;
   const playoffTeams = standings.slice(0, 8);
   const chasingTeams = standings.slice(8);
+  const leader = standings[0];
+  const playoffCutline = standings[7];
+  const firstOut = standings[8];
+  const bestPointDifference = [...standings].sort((a, b) => b.pointDifference - a.pointDifference)[0];
+  const bestOffence = [...standings].sort((a, b) => b.pointsFor - a.pointsFor)[0];
+  const bestDefence = [...standings].sort((a, b) => a.pointsAgainst - b.pointsAgainst)[0];
 
   return (
     <section className="league-screen">
@@ -25,10 +32,42 @@ export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }:
       </div>
 
       <section className="league-summary-grid">
-        <SummaryCard label="Your Position" value={userStanding ? ordinal(standings.indexOf(userStanding) + 1) : '—'} helper="Current table rank" />
-        <SummaryCard label="Your Record" value={userStanding ? `${userStanding.wins}-${userStanding.losses}` : '0-0'} helper="Wins and losses" />
-        <SummaryCard label="Playoff Places" value="Top 8" helper="Qualify for postseason" />
-        <SummaryCard label="Games Played" value={`${gamesPlayed}`} helper={`${totalGames - gamesPlayed} remaining`} />
+        <SummaryCard label="Your Position" value={userStanding ? ordinal(userRank) : '—'} helper={userStanding ? getTableStatus(userRank, standings.length) : 'Current table rank'} />
+        <SummaryCard label="League Leader" value={leader?.shortName ?? '—'} helper={leader ? `${leader.wins}-${leader.losses} · ${formatPercentage(leader.winPercentage)}` : 'Awaiting results'} />
+        <SummaryCard label="Playoff Cutline" value={playoffCutline?.shortName ?? '—'} helper={firstOut ? `${firstOut.shortName} chasing from 9th` : 'Top 8 qualify'} />
+        <SummaryCard label="Games Remaining" value={`${totalGames - gamesPlayed}`} helper="Before playoff seeding locks" />
+      </section>
+
+      <section className="league-summary-panels">
+        <article className="panel league-mini-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Table Intelligence</p>
+              <h3>Race notes</h3>
+            </div>
+            <span className="chip">Scout view</span>
+          </div>
+          <div className="assistant-notes">
+            <LeagueNote title="Title race" body={leader ? `${leader.teamName} currently set the pace at ${leader.wins}-${leader.losses}.` : 'The title race will form after fixtures are played.'} />
+            <LeagueNote title="Playoff bubble" body={playoffCutline && firstOut ? `${playoffCutline.teamName} hold 8th while ${firstOut.teamName} chase from 9th.` : 'The playoff bubble is not active yet.'} />
+            <LeagueNote title="Your situation" body={userStanding ? `${userStanding.teamName} are ${ordinal(userRank)} with ${userStanding.pointDifference >= 0 ? '+' : ''}${userStanding.pointDifference} point difference.` : 'Choose a team to track your league status.'} />
+          </div>
+        </article>
+
+        <article className="panel league-mini-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">League Leaders</p>
+              <h3>Stat profile</h3>
+            </div>
+            <span className="chip">Team form</span>
+          </div>
+          <div className="assistant-notes">
+            <LeagueNote title="Best offence" body={bestOffence ? `${bestOffence.teamName} lead scoring with ${bestOffence.pointsFor} points.` : 'Awaiting games.'} />
+            <LeagueNote title="Best defence" body={bestDefence ? `${bestDefence.teamName} have allowed ${bestDefence.pointsAgainst} points.` : 'Awaiting games.'} />
+            <LeagueNote title="Best differential" body={bestPointDifference ? `${bestPointDifference.teamName} sit at ${bestPointDifference.pointDifference >= 0 ? '+' : ''}${bestPointDifference.pointDifference}.` : 'Awaiting games.'} />
+          </div>
+        </article>
       </section>
 
       <article className="panel league-table-panel">
@@ -53,25 +92,28 @@ export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }:
             <span>+/-</span>
           </div>
 
-          {standings.map((standing, index) => (
-            <div className={standing.teamId === userTeamId ? 'standings-table-row user-team' : 'standings-table-row'} key={standing.teamId}>
-              <span className="standings-rank">{index + 1}</span>
-              <div className="standings-team-cell">
-                <TeamLogo teamId={standing.teamId} teamName={standing.teamName} size={34} className="team-table-logo" />
-                <div>
-                  <strong>{standing.teamName}</strong>
-                  <span>{standing.nation}</span>
+          {standings.map((standing, index) => {
+            const rank = index + 1;
+            return (
+              <div className={standing.teamId === userTeamId ? 'standings-table-row user-team' : 'standings-table-row'} key={standing.teamId}>
+                <span className="standings-rank">{rank}</span>
+                <div className="standings-team-cell">
+                  <TeamLogo teamId={standing.teamId} teamName={standing.teamName} size={34} className="team-table-logo" />
+                  <div>
+                    <strong>{standing.teamName}</strong>
+                    <span>{standing.nation} · {getTableStatus(rank, standings.length)}</span>
+                  </div>
                 </div>
+                <span>{standing.played}</span>
+                <span>{standing.wins}</span>
+                <span>{standing.losses}</span>
+                <span>{formatPercentage(standing.winPercentage)}</span>
+                <span>{standing.pointsFor}</span>
+                <span>{standing.pointsAgainst}</span>
+                <strong>{standing.pointDifference > 0 ? `+${standing.pointDifference}` : standing.pointDifference}</strong>
               </div>
-              <span>{standing.played}</span>
-              <span>{standing.wins}</span>
-              <span>{standing.losses}</span>
-              <span>{formatPercentage(standing.winPercentage)}</span>
-              <span>{standing.pointsFor}</span>
-              <span>{standing.pointsAgainst}</span>
-              <strong>{standing.pointDifference > 0 ? `+${standing.pointDifference}` : standing.pointDifference}</strong>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </article>
 
@@ -95,7 +137,7 @@ export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }:
             </div>
             <span className="chip">Out</span>
           </div>
-          <MiniTeamList standings={chasingTeams} />
+          <MiniTeamList standings={chasingTeams} startRank={9} />
         </article>
       </section>
     </section>
@@ -120,14 +162,15 @@ function SummaryCard({ label, value, helper }: SummaryCardProps) {
 
 type MiniTeamListProps = {
   standings: Standing[];
+  startRank?: number;
 };
 
-function MiniTeamList({ standings }: MiniTeamListProps) {
+function MiniTeamList({ standings, startRank = 1 }: MiniTeamListProps) {
   return (
     <div className="league-mini-list">
       {standings.map((standing, index) => (
         <div className="league-mini-row" key={standing.teamId}>
-          <span>{index + 1}</span>
+          <span>{startRank + index}</span>
           <TeamLogo teamId={standing.teamId} teamName={standing.teamName} size={26} className="team-mini-logo" />
           <strong>{standing.shortName}</strong>
           <em>{standing.wins}-{standing.losses}</em>
@@ -135,6 +178,22 @@ function MiniTeamList({ standings }: MiniTeamListProps) {
       ))}
     </div>
   );
+}
+
+function LeagueNote({ body, title }: { body: string; title: string }) {
+  return (
+    <div className="assistant-note">
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </div>
+  );
+}
+
+function getTableStatus(rank: number, totalTeams: number) {
+  if (rank <= 3) return 'Contender';
+  if (rank <= 8) return 'Playoff zone';
+  if (rank <= Math.ceil(totalTeams * 0.75)) return 'Chasing pack';
+  return 'Struggling';
 }
 
 function formatPercentage(value: number) {
