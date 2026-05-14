@@ -30,9 +30,13 @@ export function calculateSimulationDiagnostics(
     ? results.filter((result) => result.homeTeamId === userTeamId || result.awayTeamId === userTeamId)
     : [];
   const userUpsets = userGames.filter((result) => {
-    if (result.matchupLabel === 'Strong advantage' && result.winnerTeamId !== userTeamId) return true;
-    if (result.matchupLabel === 'Major underdog' && result.winnerTeamId === userTeamId) return true;
-    return false;
+    const userIsHome = result.homeTeamId === userTeamId;
+    const homeExpectedWin = getHomeExpectedWin(result.matchupLabel);
+    if (homeExpectedWin === null) return false;
+
+    const userExpectedWin = userIsHome ? homeExpectedWin : !homeExpectedWin;
+    const userWon = result.winnerTeamId === userTeamId;
+    return userExpectedWin !== userWon;
   }).length;
 
   return {
@@ -46,4 +50,10 @@ export function calculateSimulationDiagnostics(
 
 function round(value: number) {
   return Math.round(value * 1000) / 1000;
+}
+
+function getHomeExpectedWin(matchupLabel: SimulatedGameResult['matchupLabel']) {
+  if (matchupLabel === 'Strong advantage' || matchupLabel === 'Slight advantage') return true;
+  if (matchupLabel === 'Risky matchup' || matchupLabel === 'Major underdog') return false;
+  return null;
 }
