@@ -22,6 +22,7 @@ type InboxScreenProps = {
   selectedTeam: Team;
   standings: Standing[];
   userStanding: Standing | undefined;
+  onNavigate: (view: 'Dashboard' | 'Tactics' | 'Development' | 'Board & Finance') => void;
 };
 
 export function InboxScreen({
@@ -34,6 +35,7 @@ export function InboxScreen({
   selectedTeam,
   standings,
   userStanding,
+  onNavigate,
 }: InboxScreenProps) {
   const messages = createInboxMessages({
     boardConfidence,
@@ -122,6 +124,7 @@ export function InboxScreen({
                 <strong>{message.title}</strong>
                 <span>{message.body}</span>
               </div>
+              {getMessageAction(message, onNavigate)}
               <StatPill label="TYPE" value={message.type} />
               <StatPill label="TAG" value={message.tag} />
               <StatPill label="PRIO" value={message.priority} />
@@ -133,7 +136,7 @@ export function InboxScreen({
   );
 }
 
-type CreateInboxInput = InboxScreenProps;
+type CreateInboxInput = Omit<InboxScreenProps, 'onNavigate'>;
 
 function createInboxMessages({
   boardConfidence,
@@ -316,4 +319,27 @@ function getOrdinalPosition(position: number) {
         : 'th';
 
   return `${position}${suffix}`;
+}
+
+function getMessageAction(
+  message: InboxMessage,
+  onNavigate: InboxScreenProps['onNavigate'],
+) {
+  if (message.type === 'Medical') {
+    return <button className="option-button" onClick={() => onNavigate('Tactics')}>Open Tactics</button>;
+  }
+
+  if (message.type === 'Development') {
+    return <button className="option-button" onClick={() => onNavigate('Development')}>Open Development</button>;
+  }
+
+  if (message.type === 'Board') {
+    return <button className="option-button" onClick={() => onNavigate('Board & Finance')}>Open Board</button>;
+  }
+
+  if (message.type === 'Fixture') {
+    return <button className="option-button" onClick={() => onNavigate('Dashboard')}>Open Dashboard</button>;
+  }
+
+  return null;
 }
