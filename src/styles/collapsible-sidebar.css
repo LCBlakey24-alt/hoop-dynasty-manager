@@ -1,11 +1,11 @@
 body.sidebar-is-collapsed .app-shell {
-  grid-template-columns: 88px 1fr;
+  grid-template-columns: 64px 1fr;
 }
 
 .sidebar-collapse-toggle {
   position: fixed;
-  top: 84px;
-  left: 264px;
+  top: 16px;
+  left: 196px;
   z-index: 20;
   width: 36px;
   height: 36px;
@@ -13,28 +13,34 @@ body.sidebar-is-collapsed .app-shell {
   color: #fed7aa;
   background: rgba(15, 23, 42, 0.95);
   cursor: pointer;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 900;
+  border-radius: 10px;
 }
 
 body.sidebar-is-collapsed .sidebar-collapse-toggle {
-  left: 72px;
+  left: 48px;
 }
 
 body.sidebar-is-collapsed .sidebar {
-  padding: 1.25rem 0.9rem;
+  padding: 0.7rem 0.5rem;
 }
 
 body.sidebar-is-collapsed .brand-lockup > div:not(.brand-mark),
-body.sidebar-is-collapsed .nav-item span,
+body.sidebar-is-collapsed .nav-item .nav-label,
 body.sidebar-is-collapsed .soon-pill {
   display: none;
 }
 
 body.sidebar-is-collapsed .nav-item {
-  display: grid;
+  display: flex;
   justify-content: center;
   padding: 0.85rem 0;
+  min-height: 34px;
+}
+
+body.sidebar-is-collapsed .sidebar {
+  overflow: hidden;
 }
 
 @media (max-width: 980px) {
