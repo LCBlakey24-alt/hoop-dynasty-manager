@@ -24,7 +24,9 @@ export function BoardFinanceScreen({ boardConfidence, selectedTeam, standings, u
   const expectations = createBoardExpectations(selectedTeam, standings.length);
   const boardNotes = createBoardNotes(boardConfidence, finance, selectedTeam, userStanding, leaguePosition, standings.length);
   const wageUsage = Math.round((finance.currentWages / finance.wageBudget) * 100);
+  const wageStatus = getWageStatus(wageUsage);
   const projectedProfit = finance.projectedRevenue - finance.projectedCosts;
+  const spendingRoom = Math.max(0, finance.wageBudget - finance.currentWages);
 
   return (
     <section className="roster-screen">
@@ -39,7 +41,7 @@ export function BoardFinanceScreen({ boardConfidence, selectedTeam, standings, u
 
       <section className="roster-summary-grid">
         <SummaryCard label="Club Balance" value={formatMoney(finance.balance)} helper={finance.healthLabel} />
-        <SummaryCard label="Wage Usage" value={`${wageUsage}%`} helper={`${formatMoney(finance.currentWages)} / ${formatMoney(finance.wageBudget)}`} />
+        <SummaryCard label="Wage Status" value={wageStatus} helper={`${wageUsage}% used · ${formatMoney(spendingRoom)} room`} />
         <SummaryCard label="Transfer Pot" value={formatMoney(finance.transferBudget)} helper="Early recruitment budget" />
         <SummaryCard label="Projection" value={formatMoney(projectedProfit)} helper={projectedProfit >= 0 ? 'Projected profit' : 'Projected loss'} />
       </section>
@@ -67,6 +69,29 @@ export function BoardFinanceScreen({ boardConfidence, selectedTeam, standings, u
         <article className="panel result-detail-panel">
           <div className="panel-header">
             <div>
+              <p className="eyebrow">Recruitment Room</p>
+              <h3>Budget guidance</h3>
+            </div>
+            <span className={wageUsage >= 95 ? 'chip warning' : 'chip'}>{wageStatus}</span>
+          </div>
+
+          <div className="assistant-notes">
+            <div className="assistant-note">
+              <strong>Wage room</strong>
+              <span>{spendingRoom > 0 ? `You have roughly ${formatMoney(spendingRoom)} annual wage space before reaching the current wage budget.` : 'The squad is currently above the wage budget.'}</span>
+            </div>
+            <div className="assistant-note">
+              <strong>Recruitment stance</strong>
+              <span>{getRecruitmentAdvice(wageUsage, projectedProfit, boardConfidence)}</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section className="result-grid">
+        <article className="panel result-detail-panel">
+          <div className="panel-header">
+            <div>
               <p className="eyebrow">Finance Breakdown</p>
               <h3>Projected season</h3>
             </div>
@@ -80,30 +105,30 @@ export function BoardFinanceScreen({ boardConfidence, selectedTeam, standings, u
             <FinanceRow label="Current Contract Wages" value={formatMoney(finance.currentWages)} helper="Calculated from player contracts" />
           </div>
         </article>
-      </section>
 
-      <article className="panel result-detail-panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Board Notes</p>
-            <h3>Recommended focus</h3>
-          </div>
-          <span className={boardConfidence < 55 ? 'chip warning' : 'chip'}>{boardConfidence < 55 ? 'Pressure' : 'Stable'}</span>
-        </div>
-
-        <div className="box-score-list full-box-score-list">
-          {boardNotes.map((note) => (
-            <div className="box-score-row" key={note.title}>
-              <div>
-                <strong>{note.title}</strong>
-                <span>{note.body}</span>
-              </div>
-              <StatBlock label="AREA" value={note.area} />
-              <StatBlock label="PRIO" value={note.priority} />
+        <article className="panel result-detail-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Board Notes</p>
+              <h3>Recommended focus</h3>
             </div>
-          ))}
-        </div>
-      </article>
+            <span className={boardConfidence < 55 ? 'chip warning' : 'chip'}>{boardConfidence < 55 ? 'Pressure' : 'Stable'}</span>
+          </div>
+
+          <div className="box-score-list full-box-score-list">
+            {boardNotes.map((note) => (
+              <div className="box-score-row" key={note.title}>
+                <div>
+                  <strong>{note.title}</strong>
+                  <span>{note.body}</span>
+                </div>
+                <StatBlock label="AREA" value={note.area} />
+                <StatBlock label="PRIO" value={note.priority} />
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
     </section>
   );
 }
@@ -222,6 +247,21 @@ function createBoardNotes(
   }
 
   return notes;
+}
+
+function getWageStatus(wageUsage: number) {
+  if (wageUsage >= 108) return 'Over limit';
+  if (wageUsage >= 95) return 'Tight';
+  if (wageUsage >= 80) return 'Managed';
+  return 'Flexible';
+}
+
+function getRecruitmentAdvice(wageUsage: number, projectedProfit: number, boardConfidence: number) {
+  if (wageUsage >= 108) return 'Release or renew carefully before adding more wages. The board is unlikely to approve further spending.';
+  if (wageUsage >= 95) return 'Target low-wage depth or prospects only. Avoid expensive rotation signings.';
+  if (projectedProfit < 0) return 'Recruitment should focus on value contracts because the season is projected to run at a loss.';
+  if (boardConfidence < 55) return 'Short-term reinforcements may be justified, but failed signings could increase pressure.';
+  return 'There is room for selective recruitment, especially high-upside prospects or clear positional needs.';
 }
 
 function getOrdinalPosition(position: number) {
