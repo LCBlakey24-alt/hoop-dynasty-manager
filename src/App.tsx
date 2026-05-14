@@ -373,7 +373,7 @@ export function App() {
                 onClick={() => item.enabled && setActiveView(item.label as ActiveView)}
               >
                 <Icon size={18} />
-                {item.label}
+                <span className="nav-label">{item.label}</span>
                 {!item.enabled && <span className="soon-pill">Soon</span>}
               </button>
             );
