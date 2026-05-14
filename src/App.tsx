@@ -134,6 +134,8 @@ export function App() {
     developmentReady > 0 ? `${developmentReady} prospect${developmentReady === 1 ? '' : 's'} near OVR growth` : null,
     boardConfidence < 55 ? 'Board pressure increasing — prioritise results' : null,
   ].filter(Boolean) as string[];
+  const seasonObjective = getSeasonObjective(selectedTeam.reputation);
+  const objectiveProgress = getObjectiveProgress(standings, selectedTeam.id, seasonObjective.targetRank);
   const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId, effectiveTeams) : null;
   const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId, effectiveTeams) : null;
   const nextMatchupLabel = nextHomeTeam && nextAwayTeam
@@ -432,6 +434,8 @@ export function App() {
             tactics={tactics}
             topPlayers={topPlayers}
             managerTasks={managerTasks}
+            seasonObjective={seasonObjective}
+            objectiveProgress={objectiveProgress}
             userGameResult={userGameResult}
             userStanding={userStanding}
             userWonLatestGame={userWonLatestGame}
@@ -565,6 +569,8 @@ type DashboardViewProps = {
   tactics: TacticalSettings;
   topPlayers: Team['roster'];
   managerTasks: string[];
+  seasonObjective: { title: string; targetRank: number; summary: string };
+  objectiveProgress: number;
   userGameResult: SimulatedGameResult | null;
   userStanding: ReturnType<typeof calculateStandings>[number] | undefined;
   userWonLatestGame: boolean;
@@ -593,6 +599,8 @@ function DashboardView({
   tactics,
   topPlayers,
   managerTasks,
+  seasonObjective,
+  objectiveProgress,
   userGameResult,
   userStanding,
   userWonLatestGame,
@@ -693,6 +701,22 @@ function DashboardView({
               <span>{task}</span>
             </div>
           ))}
+        </div>
+      </article>
+
+      <article className="panel wide-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Season Objective</p>
+            <h3>{seasonObjective.title}</h3>
+          </div>
+          <span className="chip">{Math.round(objectiveProgress)}%</span>
+        </div>
+        <p className="muted">{seasonObjective.summary}</p>
+        <div className="meter-cell" aria-label={`Objective progress ${Math.round(objectiveProgress)} percent`}>
+          <div className="meter-track">
+            <div className="meter-fill" style={{ width: `${Math.max(0, Math.min(100, objectiveProgress))}%` }} />
+          </div>
         </div>
       </article>
 
@@ -799,4 +823,29 @@ function getOrdinalPosition(position: number) {
         : 'th';
 
   return `${position}${suffix}`;
+}
+
+function getSeasonObjective(reputation: number) {
+  if (reputation >= 82) {
+    return { title: 'Title Push', targetRank: 2, summary: 'Board expects a top-2 finish and deep playoff run.' };
+  }
+  if (reputation >= 74) {
+    return { title: 'Playoff Lock', targetRank: 4, summary: 'Board expects a stable playoff seed and positive momentum.' };
+  }
+  return { title: 'Build Year', targetRank: 6, summary: 'Board expects competitive progress and squad development.' };
+}
+
+function getObjectiveProgress(
+  standings: ReturnType<typeof calculateStandings>,
+  selectedTeamId: string,
+  targetRank: number,
+) {
+  const teamIndex = standings.findIndex((standing) => standing.teamId === selectedTeamId);
+  if (teamIndex === -1) return 0;
+
+  const rank = teamIndex + 1;
+  if (rank <= targetRank) return 100;
+
+  const distance = rank - targetRank;
+  return Math.max(0, 100 - distance * 15);
 }
