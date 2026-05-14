@@ -27,6 +27,7 @@ import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { createDefaultRotation, normaliseRotation } from './game/rotation';
 import { createSeededRng, generateSeed } from './game/rng';
+import { runSimulationHarness } from './game/simulationHarness';
 import { calculateSimulationDiagnostics } from './game/simulationDiagnostics';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
@@ -116,6 +117,12 @@ export function App() {
       console.info('[Sim Diagnostics]', diagnostics);
     }
   }, [diagnostics]);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.info('[Sim Harness 500 games]', runSimulationHarness(500, rngSeed));
+    }
+  }, [rngSeed]);
 
   function resetManagedState(teamId = selectedTeamId) {
     const freshTeam = getTeam(teamId);
@@ -587,7 +594,7 @@ function DashboardView({
         <strong>{diagnostics.games ? Math.round(diagnostics.averageCombinedScore) : '—'}</strong>
         <span className="muted">
           {diagnostics.games
-            ? `Home W ${Math.round(diagnostics.homeWinRate * 100)}% · Blowouts ${Math.round(diagnostics.blowoutRate * 100)}%`
+            ? `Home W ${Math.round(diagnostics.homeWinRate * 100)}% · Upsets ${Math.round(diagnostics.upsetRate * 100)}% · Blowouts ${Math.round(diagnostics.blowoutRate * 100)}%`
             : 'No games simulated yet'}
         </span>
       </article>
