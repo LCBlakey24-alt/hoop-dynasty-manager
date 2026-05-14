@@ -12,6 +12,10 @@ type ScheduleScreenProps = {
 export function ScheduleScreen({ currentRound, fixtures, results, teams, totalRounds }: ScheduleScreenProps) {
   const groupedFixtures = groupFixturesByRound(fixtures);
   const playedCount = results.length;
+  const nextFixture = fixtures.find((fixture) => !findResultForFixture(fixture, results));
+  const latestResult = results.at(-1) ?? null;
+  const currentRoundFixtures = fixtures.filter((fixture) => fixture.round === currentRound);
+  const currentRoundPlayed = countPlayedFixtures(currentRoundFixtures, results);
 
   return (
     <section className="schedule-screen">
@@ -25,10 +29,63 @@ export function ScheduleScreen({ currentRound, fixtures, results, teams, totalRo
       </div>
 
       <section className="schedule-summary-grid">
-        <SummaryCard label="Current Round" value={`${currentRound}/${totalRounds}`} helper="Next unplayed fixture round" />
-        <SummaryCard label="Total Fixtures" value={fixtures.length.toString()} helper="Double round-robin season" />
-        <SummaryCard label="Games Played" value={playedCount.toString()} helper="Completed fixtures" />
+        <SummaryCard label="Current Round" value={`${currentRound}/${totalRounds}`} helper={`${currentRoundPlayed}/${currentRoundFixtures.length || 0} round fixtures played`} />
+        <SummaryCard label="Next Fixture" value={nextFixture ? getFixtureShortLabel(nextFixture, teams) : 'Season Complete'} helper={nextFixture ? `Round ${nextFixture.round}` : 'Regular season finished'} />
+        <SummaryCard label="Latest Result" value={latestResult ? getResultShortLabel(latestResult, teams) : 'No Result'} helper={latestResult ? getWinnerLabel(latestResult, teams) : 'Simulate a fixture'} />
         <SummaryCard label="Games Remaining" value={(fixtures.length - playedCount).toString()} helper="Regular season games left" />
+      </section>
+
+      <section className="result-grid">
+        <article className="panel result-detail-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Next Up</p>
+              <h3>Fixture preview</h3>
+            </div>
+            <span className="chip">Planner</span>
+          </div>
+
+          <div className="assistant-notes">
+            {nextFixture ? (
+              <>
+                <div className="assistant-note">
+                  <strong>{getFixtureFullLabel(nextFixture, teams)}</strong>
+                  <span>Review rotation, fitness and tactics before simulating this matchup.</span>
+                </div>
+                <div className="assistant-note">
+                  <strong>Round status</strong>
+                  <span>Round {currentRound} is {currentRoundPlayed}/{currentRoundFixtures.length} complete.</span>
+                </div>
+              </>
+            ) : (
+              <div className="assistant-note">
+                <strong>Regular season complete</strong>
+                <span>All fixtures have been played. Review the league table and prepare for playoffs.</span>
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="panel result-detail-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Season Pace</p>
+              <h3>Progress tracker</h3>
+            </div>
+            <span className="chip">{Math.round((playedCount / fixtures.length) * 100)}%</span>
+          </div>
+
+          <div className="assistant-notes">
+            <div className="assistant-note">
+              <strong>Completed</strong>
+              <span>{playedCount} of {fixtures.length} regular-season fixtures have been played.</span>
+            </div>
+            <div className="assistant-note">
+              <strong>Remaining</strong>
+              <span>{fixtures.length - playedCount} games remain before playoff seeding is finalised.</span>
+            </div>
+          </div>
+        </article>
       </section>
 
       <article className="panel schedule-panel">
@@ -37,34 +94,39 @@ export function ScheduleScreen({ currentRound, fixtures, results, teams, totalRo
             <p className="eyebrow">Fixtures</p>
             <h3>Round-by-round schedule</h3>
           </div>
-          <span className="chip">22 rounds</span>
+          <span className="chip">{totalRounds} rounds</span>
         </div>
 
         <div className="round-list">
-          {groupedFixtures.map(([round, roundFixtures]) => (
-            <section className={Number(round) === currentRound ? 'round-block active' : 'round-block'} key={round}>
-              <div className="round-header">
-                <strong>Round {round}</strong>
-                <span>{countPlayedFixtures(roundFixtures, results)}/{roundFixtures.length} played</span>
-              </div>
+          {groupedFixtures.map(([round, roundFixtures]) => {
+            const playedFixtures = countPlayedFixtures(roundFixtures, results);
+            const status = getRoundStatus(round, currentRound, playedFixtures, roundFixtures.length);
 
-              <div className="fixture-list">
-                {roundFixtures.map((fixture) => {
-                  const result = findResultForFixture(fixture, results);
-                  const homeTeam = findTeam(fixture.homeTeamId, teams);
-                  const awayTeam = findTeam(fixture.awayTeamId, teams);
+            return (
+              <section className={Number(round) === currentRound ? 'round-block active' : 'round-block'} key={round}>
+                <div className="round-header">
+                  <strong>Round {round}</strong>
+                  <span>{status} · {playedFixtures}/{roundFixtures.length} played</span>
+                </div>
 
-                  return (
-                    <div className="fixture-row" key={fixture.id}>
-                      <TeamLabel team={homeTeam} />
-                      <FixtureScore fixture={fixture} result={result} />
-                      <TeamLabel team={awayTeam} align="right" />
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                <div className="fixture-list">
+                  {roundFixtures.map((fixture) => {
+                    const result = findResultForFixture(fixture, results);
+                    const homeTeam = findTeam(fixture.homeTeamId, teams);
+                    const awayTeam = findTeam(fixture.awayTeamId, teams);
+
+                    return (
+                      <div className="fixture-row" key={fixture.id}>
+                        <TeamLabel team={homeTeam} />
+                        <FixtureScore fixture={fixture} result={result} />
+                        <TeamLabel team={awayTeam} align="right" />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </div>
       </article>
     </section>
@@ -154,4 +216,33 @@ function findTeam(teamId: string, teams: Team[]) {
   }
 
   return team;
+}
+
+function getFixtureShortLabel(fixture: Fixture, teams: Team[]) {
+  const homeTeam = findTeam(fixture.homeTeamId, teams);
+  const awayTeam = findTeam(fixture.awayTeamId, teams);
+  return `${homeTeam.shortName} vs ${awayTeam.shortName}`;
+}
+
+function getFixtureFullLabel(fixture: Fixture, teams: Team[]) {
+  const homeTeam = findTeam(fixture.homeTeamId, teams);
+  const awayTeam = findTeam(fixture.awayTeamId, teams);
+  return `${homeTeam.name} vs ${awayTeam.name}`;
+}
+
+function getResultShortLabel(result: SimulatedGameResult, teams: Team[]) {
+  const homeTeam = findTeam(result.homeTeamId, teams);
+  const awayTeam = findTeam(result.awayTeamId, teams);
+  return `${homeTeam.shortName} ${result.homeScore}-${result.awayScore} ${awayTeam.shortName}`;
+}
+
+function getWinnerLabel(result: SimulatedGameResult, teams: Team[]) {
+  return `${findTeam(result.winnerTeamId, teams).name} won`;
+}
+
+function getRoundStatus(round: number, currentRound: number, playedFixtures: number, totalFixtures: number) {
+  if (playedFixtures === totalFixtures) return 'Complete';
+  if (round === currentRound) return 'Current';
+  if (round < currentRound) return 'Part-played';
+  return 'Upcoming';
 }
