@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { ContractsScreen } from './components/ContractsScreen';
@@ -27,10 +27,9 @@ import { applyPostGameDevelopment } from './game/playerDevelopment';
 import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { createDefaultRotation, normaliseRotation } from './game/rotation';
-import { generateSeed } from './game/rng';
+import { createSeededRng, generateSeed } from './game/rng';
 import { runSimulationHarness } from './game/simulationHarness';
 import { calculateSimulationDiagnostics } from './game/simulationDiagnostics';
-import { useSimulationRng } from './game/useSimulationRng';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
@@ -79,10 +78,17 @@ export function App() {
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
   const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
-  const { rng: simulationRng, reset: resetSimulationRng, rngCallsRef } = useSimulationRng(
-    initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed,
-    initialSave?.rngCalls ?? 0,
-  );
+  const rngCallsRef = useRef<number>(initialSave?.rngCalls ?? 0);
+  const rngReplayAppliedRef = useRef(false);
+  const simulationRngBase = useRef(createSeededRng(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed));
+  if (!rngReplayAppliedRef.current && rngCallsRef.current > 0) {
+    for (let draw = 0; draw < rngCallsRef.current; draw += 1) simulationRngBase.current();
+    rngReplayAppliedRef.current = true;
+  }
+  const simulationRng = useRef(() => {
+    rngCallsRef.current += 1;
+    return simulationRngBase.current();
+  });
 
   const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
   const rotation = normaliseRotation(selectedTeam, rotationPlan);
@@ -168,7 +174,12 @@ export function App() {
     setTrainingFocus('Balanced');
     const nextSeed = generateSeed();
     setRngSeed(nextSeed);
-    resetSimulationRng(nextSeed);
+    rngCallsRef.current = 0;
+    simulationRngBase.current = createSeededRng(nextSeed);
+    simulationRng.current = () => {
+      rngCallsRef.current += 1;
+      return simulationRngBase.current();
+    };
     resetManagedState();
   }
 
@@ -181,7 +192,12 @@ export function App() {
     setTrainingFocus('Balanced');
     const nextSeed = generateSeed();
     setRngSeed(nextSeed);
-    resetSimulationRng(nextSeed);
+    rngCallsRef.current = 0;
+    simulationRngBase.current = createSeededRng(nextSeed);
+    simulationRng.current = () => {
+      rngCallsRef.current += 1;
+      return simulationRngBase.current();
+    };
     resetManagedState();
     setActiveView('Team Select');
   }
@@ -200,7 +216,12 @@ export function App() {
     setTrainingFocus('Balanced');
     const nextSeed = generateSeed();
     setRngSeed(nextSeed);
-    resetSimulationRng(nextSeed);
+    rngCallsRef.current = 0;
+    simulationRngBase.current = createSeededRng(nextSeed);
+    simulationRng.current = () => {
+      rngCallsRef.current += 1;
+      return simulationRngBase.current();
+    };
     setActiveView('Dashboard');
   }
 
@@ -231,7 +252,7 @@ export function App() {
       awayTactics,
       homeRotation: homeIsUser ? rotation : null,
       awayRotation: awayIsUser ? rotation : null,
-      rng: simulationRng,
+      rng: simulationRng.current,
     });
 
     if (!homeIsUser && !awayIsUser) return { result, managedTeam, conditionReport: latestConditionReport, developmentReport: latestDevelopmentReport };
@@ -311,7 +332,7 @@ export function App() {
             awayTactics: matchup.awaySeed.standing.teamId === selectedTeam.id ? tactics : defaultTactics,
             homeRotation: matchup.homeSeed.standing.teamId === selectedTeam.id ? rotation : null,
             awayRotation: matchup.awaySeed.standing.teamId === selectedTeam.id ? rotation : null,
-            rng: simulationRng,
+            rng: simulationRng.current,
           },
         ));
 
