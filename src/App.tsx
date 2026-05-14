@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { ContractsScreen } from './components/ContractsScreen';
@@ -27,6 +27,7 @@ import { applyTrainingFocus } from './game/training';
 import { createFinalMatchup, createQuarterFinalMatchups, createSemiFinalMatchups, type PlayoffMatchup } from './game/playoffs';
 import { createDefaultRotation, normaliseRotation } from './game/rotation';
 import { createSeededRng, generateSeed } from './game/rng';
+import { calculateSimulationDiagnostics } from './game/simulationDiagnostics';
 import { simulateGame, type SimulatedGameResult } from './game/simulateGame';
 import { defaultTactics, type TacticalSettings } from './game/tactics';
 import { calculateWinProbability } from './game/winProbability';
@@ -99,7 +100,8 @@ export function App() {
   const currentRoundFixtures = getFixturesForRound(currentRound);
   const userGameResult = [...results].reverse().find((result) => result.homeTeamId === selectedTeam.id || result.awayTeamId === selectedTeam.id) ?? null;
   const userWonLatestGame = userGameResult?.winnerTeamId === selectedTeam.id;
-  const boardConfidence = calculateBoardConfidence({ standings, selectedTeamId: selectedTeam.id, latestUserGame: userGameResult });
+  const boardConfidence = calculateBoardConfidence({ standings, selectedTeamId: selectedTeam.id, latestUserGame: userGameResult, results });
+  const diagnostics = useMemo(() => calculateSimulationDiagnostics(results, selectedTeam.id), [results, selectedTeam.id]);
   const nextHomeTeam = nextFixture ? getTeam(nextFixture.homeTeamId, effectiveTeams) : null;
   const nextAwayTeam = nextFixture ? getTeam(nextFixture.awayTeamId, effectiveTeams) : null;
   const nextMatchupLabel = nextHomeTeam && nextAwayTeam
@@ -108,6 +110,12 @@ export function App() {
       awayTactics: nextAwayTeam.id === selectedTeam.id ? tactics : defaultTactics,
     }).matchupLabel
     : null;
+
+  useEffect(() => {
+    if (import.meta.env.DEV && diagnostics.games > 0) {
+      console.info('[Sim Diagnostics]', diagnostics);
+    }
+  }, [diagnostics]);
 
   function resetManagedState(teamId = selectedTeamId) {
     const freshTeam = getTeam(teamId);
@@ -694,10 +702,12 @@ function calculateBoardConfidence({
   standings,
   selectedTeamId,
   latestUserGame,
+  results,
 }: {
   standings: ReturnType<typeof calculateStandings>;
   selectedTeamId: string;
   latestUserGame: SimulatedGameResult | null;
+  results: SimulatedGameResult[];
 }) {
   const teamIndex = standings.findIndex((standing) => standing.teamId === selectedTeamId);
 
@@ -706,10 +716,15 @@ function calculateBoardConfidence({
   const standing = standings[teamIndex];
   const rank = teamIndex + 1;
   const totalTeams = standings.length;
+  const recentUserGames = results
+    .filter((result) => result.homeTeamId === selectedTeamId || result.awayTeamId === selectedTeamId)
+    .slice(-5);
+  const recentWins = recentUserGames.filter((result) => result.winnerTeamId === selectedTeamId).length;
+  const formScore = recentUserGames.length > 0 ? Math.round(((recentWins / recentUserGames.length) - 0.5) * 10) : 0;
   const rankScore = Math.round(((totalTeams - rank) / Math.max(1, totalTeams - 1)) * 22);
   const recordScore = Math.round((standing.winPercentage - 0.5) * 40);
   const pdScore = Math.max(-8, Math.min(8, Math.round(standing.pointDifference / Math.max(1, standing.played * 2.5))));
   const latestGameScore = latestUserGame ? (latestUserGame.winnerTeamId === selectedTeamId ? 4 : -5) : 0;
 
-  return Math.max(40, Math.min(96, 68 + rankScore + recordScore + pdScore + latestGameScore));
+  return Math.max(40, Math.min(96, 66 + rankScore + recordScore + pdScore + latestGameScore + formScore));
 }
