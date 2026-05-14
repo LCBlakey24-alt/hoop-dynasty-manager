@@ -359,6 +359,7 @@ export function App() {
           <DashboardView
             boardConfidence={boardConfidence}
             currentRound={currentRound}
+            diagnostics={diagnostics}
             handleResetSeason={handleResetSeason}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
             handleSimulateNextFixture={handleSimulateNextFixture}
@@ -486,6 +487,7 @@ function ScoreBlock({ team, score, colour }: { team: string; score: number; colo
 type DashboardViewProps = {
   boardConfidence: number;
   currentRound: number;
+  diagnostics: ReturnType<typeof calculateSimulationDiagnostics>;
   handleResetSeason: () => void;
   handleSimulateCurrentRound: () => void;
   handleSimulateNextFixture: () => void;
@@ -509,6 +511,7 @@ type DashboardViewProps = {
 function DashboardView({
   boardConfidence,
   currentRound,
+  diagnostics,
   handleResetSeason,
   handleSimulateCurrentRound,
   handleSimulateNextFixture,
@@ -576,6 +579,16 @@ function DashboardView({
         <strong>{boardConfidence}%</strong>
         <span className={userGameResult && !userWonLatestGame ? 'warning' : 'positive'}>
           {userGameResult ? (userWonLatestGame ? 'Rising' : 'Watching closely') : 'Stable'}
+        </span>
+      </article>
+
+      <article className="panel stat-panel">
+        <p className="eyebrow">Sim Health</p>
+        <strong>{diagnostics.games ? Math.round(diagnostics.averageCombinedScore) : '—'}</strong>
+        <span className="muted">
+          {diagnostics.games
+            ? `Home W ${Math.round(diagnostics.homeWinRate * 100)}% · Blowouts ${Math.round(diagnostics.blowoutRate * 100)}%`
+            : 'No games simulated yet'}
         </span>
       </article>
 
