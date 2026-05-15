@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PlayerBoxScore, SimulatedGameResult } from '../game/simulateGame';
 import type { PlayerConditionChange, Team } from '../types/basketball';
 
 type MatchResultScreenProps = {
+  focusMode: 'My Team' | 'League';
   latestConditionReport: PlayerConditionChange[];
   latestResult: SimulatedGameResult | null;
   results: SimulatedGameResult[];
@@ -10,8 +11,11 @@ type MatchResultScreenProps = {
   teams: Team[];
 };
 
-export function MatchResultScreen({ latestConditionReport, latestResult, results, selectedTeamId, teams }: MatchResultScreenProps) {
-  const [historyFilter, setHistoryFilter] = useState<'All' | 'My Team'>('My Team');
+export function MatchResultScreen({ focusMode, latestConditionReport, latestResult, results, selectedTeamId, teams }: MatchResultScreenProps) {
+  const [historyFilter, setHistoryFilter] = useState<'All' | 'My Team'>(focusMode === 'League' ? 'All' : 'My Team');
+  useEffect(() => {
+    setHistoryFilter(focusMode === 'League' ? 'All' : 'My Team');
+  }, [focusMode]);
   const filteredHistory = useMemo(() => {
     const base = [...results].reverse();
 
@@ -51,6 +55,7 @@ export function MatchResultScreen({ latestConditionReport, latestResult, results
   const topPerformer = sortedPerformers[0];
   const homeBoxScore = latestResult.homeBoxScore ?? latestResult.topPerformers.filter((player) => player.teamId === homeTeam.id);
   const awayBoxScore = latestResult.awayBoxScore ?? latestResult.topPerformers.filter((player) => player.teamId === awayTeam.id);
+  const factors = getMatchFactors(homeBoxScore, awayBoxScore, homeTeam.id === selectedTeamId ? 'home' : awayTeam.id === selectedTeamId ? 'away' : 'neutral');
 
   return (
     <section className="match-result-screen">
@@ -112,6 +117,21 @@ export function MatchResultScreen({ latestConditionReport, latestResult, results
             <ResultNote title="Result read" body={`${winner.name} beat ${loser.name} by ${margin}. ${getResultTypeHelper(margin)}`} />
             <ResultNote title="Player spotlight" body={topPerformer ? `${topPerformer.playerName} led the game with ${topPerformer.points} points, ${topPerformer.rebounds} rebounds and ${topPerformer.assists} assists.` : 'No standout performer was recorded.'} />
             <ResultNote title="Box score" body="Full player scoring, minutes, rebounding and assist totals are stored for newly simulated games." />
+          </div>
+        </article>
+
+        <article className="panel result-detail-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Match Factors</p>
+              <h3>Why this happened</h3>
+            </div>
+            <span className="chip">Analysis</span>
+          </div>
+          <div className="assistant-notes">
+            {factors.map((factor) => (
+              <ResultNote key={factor.title} title={factor.title} body={factor.body} />
+            ))}
           </div>
         </article>
       </section>
@@ -344,4 +364,29 @@ function findTeam(teamId: string, teams: Team[]) {
   }
 
   return team;
+}
+
+function getMatchFactors(homeBoxScore: PlayerBoxScore[], awayBoxScore: PlayerBoxScore[], userSide: 'home' | 'away' | 'neutral') {
+  const homeRebounds = homeBoxScore.reduce((sum, player) => sum + player.rebounds, 0);
+  const awayRebounds = awayBoxScore.reduce((sum, player) => sum + player.rebounds, 0);
+  const homeAssists = homeBoxScore.reduce((sum, player) => sum + player.assists, 0);
+  const awayAssists = awayBoxScore.reduce((sum, player) => sum + player.assists, 0);
+  const homeBenchPoints = homeBoxScore.slice(5).reduce((sum, player) => sum + player.points, 0);
+  const awayBenchPoints = awayBoxScore.slice(5).reduce((sum, player) => sum + player.points, 0);
+  const sideLabel = userSide === 'home' ? 'your team' : userSide === 'away' ? 'your team (away)' : 'the selected side';
+
+  return [
+    {
+      title: 'Rebounding Battle',
+      body: `${homeRebounds >= awayRebounds ? 'Home side' : 'Away side'} won rebounds ${homeRebounds}-${awayRebounds}. Extra possessions often decide close games.`,
+    },
+    {
+      title: 'Ball Movement',
+      body: `${homeAssists >= awayAssists ? 'Home side' : 'Away side'} created better assist flow (${homeAssists}-${awayAssists}), indicating cleaner shot generation.`,
+    },
+    {
+      title: 'Bench Impact',
+      body: `${homeBenchPoints >= awayBenchPoints ? 'Home bench' : 'Away bench'} outscored the other second unit ${homeBenchPoints}-${awayBenchPoints}. Monitor this for ${sideLabel}.`,
+    },
+  ];
 }

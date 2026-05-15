@@ -23,6 +23,16 @@ const comingSoonModes = [
 export function LandingScreen({ hasSave, selectedTeamName, onContinue, onNewFranchise }: LandingScreenProps) {
   return (
     <section className="landing-screen">
+      <article className="landing-splash panel">
+        <div className="landing-logo-mark">HD</div>
+        <p className="eyebrow">Hoop Dynasty Manager</p>
+        <h1>Midnight Court</h1>
+        <p className="landing-copy">A basketball management world built for long-term legacy saves.</p>
+        <button className="primary-action" onClick={hasSave ? onContinue : onNewFranchise}>
+          {hasSave ? 'Start / Continue' : 'Start Game'}
+        </button>
+      </article>
+
       <article className="landing-hero panel">
         <p className="eyebrow">Hoop Dynasty Manager</p>
         <h2>Build a basketball dynasty from the bench, the boardroom and the box score.</h2>
