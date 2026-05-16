@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PlayerBoxScore, SimulatedGameResult } from '../game/simulateGame';
 import type { PlayerConditionChange, Team } from '../types/basketball';
 
 type MatchResultScreenProps = {
+  focusMode: 'My Team' | 'League';
   latestConditionReport: PlayerConditionChange[];
   latestResult: SimulatedGameResult | null;
   results: SimulatedGameResult[];
@@ -10,8 +11,11 @@ type MatchResultScreenProps = {
   teams: Team[];
 };
 
-export function MatchResultScreen({ latestConditionReport, latestResult, results, selectedTeamId, teams }: MatchResultScreenProps) {
-  const [historyFilter, setHistoryFilter] = useState<'All' | 'My Team'>('My Team');
+export function MatchResultScreen({ focusMode, latestConditionReport, latestResult, results, selectedTeamId, teams }: MatchResultScreenProps) {
+  const [historyFilter, setHistoryFilter] = useState<'All' | 'My Team'>(focusMode === 'League' ? 'All' : 'My Team');
+  useEffect(() => {
+    setHistoryFilter(focusMode === 'League' ? 'All' : 'My Team');
+  }, [focusMode]);
   const filteredHistory = useMemo(() => {
     const base = [...results].reverse();
 

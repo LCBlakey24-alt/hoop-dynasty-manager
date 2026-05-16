@@ -304,6 +304,9 @@ export function App() {
       setLatestDevelopmentReport(developmentReport);
       return [...currentResults, ...newResults];
     });
+    const next = { ...league, teams };
+    setLeague(next);
+    saveLeague(next);
   }
 
   function handleSimulateRestOfSeason() {
@@ -366,12 +369,12 @@ export function App() {
 
   if (activeView === 'Landing') {
     return (
-      <LandingScreen
-        hasSave={hasSave}
-        onContinue={() => setActiveView('Dashboard')}
-        onNewFranchise={handleStartNewFranchise}
-        selectedTeamName={selectedTeam.name}
-      />
+      <main>
+        <h1>Hardwood Dynasty</h1>
+        <p>v0.1 MVP</p>
+        <button onClick={handleCreateLeague}>Create New League (20 Teams)</button>
+        <button onClick={() => setLeague(loadLeague())}>Load Saved League</button>
+      </main>
     );
   }
 
@@ -777,58 +780,16 @@ function DashboardView({
         </article>
       )}
 
-      <article className="panel wide-panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Top Players</p>
-            <h3>{latestResult ? 'Game Leaders' : 'Starting Core'}</h3>
-          </div>
-          <span className="chip">{latestResult ? 'Box Score' : selectedTeam.playStyle}</span>
-        </div>
-        <div className="player-list">
-          {(latestResult ? latestResult.topPerformers.slice(0, 3) : topPlayers).map((player) => (
-            'playerName' in player ? (
-              <div className="player-row" key={player.playerId}>
-                <div>
-                  <strong>{player.playerName}</strong>
-                  <span>{player.teamName} · {player.minutes ?? 0} MIN · {player.rebounds} REB · {player.assists} AST</span>
-                </div>
-                <div className="rating-pill">{player.points}</div>
-              </div>
-            ) : (
-              <div className="player-row" key={player.id}>
-                <div>
-                  <strong>{player.name}</strong>
-                  <span>{player.position} · {player.archetype}</span>
-                </div>
-                <div className="rating-pill">{player.overall}</div>
-              </div>
-            )
-          ))}
-        </div>
-      </article>
+      <h2>League Standings</h2>
+      <table border={1}>
+        <thead><tr><th>Rank</th><th>Team</th><th>W</th><th>L</th><th>PCT</th></tr></thead>
+        <tbody>
+          {standings.map((t, idx) => <tr key={t.id}><td>{idx + 1}</td><td>{t.name}</td><td>{t.wins}</td><td>{t.losses}</td><td>{t.pct.toFixed(3)}</td></tr>)}
+        </tbody>
+      </table>
 
-      <article className="panel wide-panel league-panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">League Table</p>
-            <h3>BSBL Standings</h3>
-          </div>
-          <span className="chip">{results.length}/{seasonFixtures.length} games played</span>
-        </div>
-        <div className="league-list">
-          {standings.map((standing, index) => (
-            <div className="league-row" key={standing.teamId}>
-              <span className="standings-rank">{index + 1}</span>
-              <span className="team-dot" style={{ background: standing.primaryColor }} />
-              <span>{standing.teamName}</span>
-              <span className="muted">{standing.wins}-{standing.losses}</span>
-              <strong>{standing.pointDifference > 0 ? `+${standing.pointDifference}` : standing.pointDifference}</strong>
-            </div>
-          ))}
-        </div>
-      </article>
-    </section>
+      <p>Total Games Simulated: {league.gameLog.length}</p>
+    </main>
   );
 }
 

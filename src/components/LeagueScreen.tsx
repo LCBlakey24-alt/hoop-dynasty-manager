@@ -2,13 +2,14 @@ import { TeamLogo } from './TeamLogo';
 import type { Standing } from '../types/basketball';
 
 type LeagueScreenProps = {
+  focusMode: 'My Team' | 'League';
   gamesPlayed: number;
   standings: Standing[];
   totalGames: number;
   userTeamId: string;
 };
 
-export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }: LeagueScreenProps) {
+export function LeagueScreen({ focusMode, gamesPlayed, standings, totalGames, userTeamId }: LeagueScreenProps) {
   const userStanding = standings.find((standing) => standing.teamId === userTeamId);
   const userRank = userStanding ? standings.indexOf(userStanding) + 1 : 0;
   const playoffTeams = standings.slice(0, 8);
@@ -21,7 +22,7 @@ export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }:
   const bestDefence = [...standings].sort((a, b) => a.pointsAgainst - b.pointsAgainst)[0];
 
   return (
-    <section className="league-screen">
+    <section className={focusMode === 'My Team' ? 'league-screen compact-league-screen' : 'league-screen'}>
       <div className="screen-heading">
         <div>
           <p className="eyebrow">League Table</p>
@@ -38,7 +39,8 @@ export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }:
         <SummaryCard label="Games Remaining" value={`${totalGames - gamesPlayed}`} helper="Before playoff seeding locks" />
       </section>
 
-      <section className="league-summary-panels">
+      {focusMode === 'League' && <>
+        <section className="league-summary-panels">
         <article className="panel league-mini-panel">
           <div className="panel-header">
             <div>
@@ -117,7 +119,7 @@ export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }:
         </div>
       </article>
 
-      <section className="league-summary-panels">
+        <section className="league-summary-panels">
         <article className="panel league-mini-panel">
           <div className="panel-header">
             <div>
@@ -139,7 +141,8 @@ export function LeagueScreen({ gamesPlayed, standings, totalGames, userTeamId }:
           </div>
           <MiniTeamList standings={chasingTeams} startRank={9} />
         </article>
-      </section>
+        </section>
+      </>}
     </section>
   );
 }

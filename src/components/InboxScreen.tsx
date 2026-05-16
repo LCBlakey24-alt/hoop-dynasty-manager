@@ -14,6 +14,7 @@ type InboxMessage = {
 
 type InboxScreenProps = {
   boardConfidence: number;
+  focusMode: 'My Team' | 'League';
   latestConditionReport: PlayerConditionChange[];
   latestDevelopmentReport: PlayerDevelopmentChange[];
   latestResult: SimulatedGameResult | null;
@@ -27,6 +28,7 @@ type InboxScreenProps = {
 
 export function InboxScreen({
   boardConfidence,
+  focusMode,
   latestConditionReport,
   latestDevelopmentReport,
   latestResult,
@@ -39,6 +41,7 @@ export function InboxScreen({
 }: InboxScreenProps) {
   const messages = createInboxMessages({
     boardConfidence,
+    focusMode,
     latestConditionReport,
     latestDevelopmentReport,
     latestResult,
@@ -140,6 +143,7 @@ type CreateInboxInput = Omit<InboxScreenProps, 'onNavigate'>;
 
 function createInboxMessages({
   boardConfidence,
+  focusMode,
   latestConditionReport,
   latestDevelopmentReport,
   latestResult,
@@ -260,7 +264,11 @@ function createInboxMessages({
     priority: leaguePosition > 0 && leaguePosition > Math.ceil(standings.length / 2) ? 'Normal' : 'Low',
   });
 
-  return messages.sort((a, b) => getPriorityWeight(b.priority) - getPriorityWeight(a.priority));
+  const weightedMessages = focusMode === 'My Team'
+    ? messages.filter((message) => !(message.priority === 'Low' && message.tag === 'League'))
+    : messages;
+
+  return weightedMessages.sort((a, b) => getPriorityWeight(b.priority) - getPriorityWeight(a.priority));
 }
 
 function SummaryCard({ label, value, helper }: { label: string; value: string; helper: string }) {
