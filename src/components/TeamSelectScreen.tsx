@@ -33,7 +33,6 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
   const [customTertiaryColor, setCustomTertiaryColor] = useState('#38bdf8');
   const [customLogoUrl, setCustomLogoUrl] = useState<string | undefined>(undefined);
   const [customMiniLogoUrl, setCustomMiniLogoUrl] = useState<string | undefined>(undefined);
-  const [expansionFilter, setExpansionFilter] = useState<'All' | 'Playable' | 'In Development' | 'Planned'>('All');
   const highestReputation = [...teams].sort((a, b) => b.reputation - a.reputation)[0];
   const mostHistoric = [...teams].sort((a, b) => b.championships - a.championships)[0];
   const bestRebuild = [...teams].sort((a, b) => a.reputation - b.reputation || a.championships - b.championships)[0];
