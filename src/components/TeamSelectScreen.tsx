@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { TeamLogo } from './TeamLogo';
 import { getTeamProfile } from '../data/teamProfiles';
 import type { Team } from '../types/basketball';
@@ -6,13 +7,52 @@ type TeamSelectScreenProps = {
   selectedTeamId: string;
   teams: Team[];
   onSelectTeam: (teamId: string) => void;
+  onCreateCustomTeam: (input: {
+    baseTeamId: string;
+    name: string;
+    city: string;
+    shortName: string;
+    tier: 'Top' | 'Mid' | 'Bottom';
+    primaryColor: string;
+    secondaryColor: string;
+    tertiaryColor: string;
+    logoUrl?: string;
+    miniLogoUrl?: string;
+  }) => void;
 };
 
-export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSelectScreenProps) {
+export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreateCustomTeam }: TeamSelectScreenProps) {
+  const [customTier, setCustomTier] = useState<'Top' | 'Mid' | 'Bottom'>('Mid');
+  const [customName, setCustomName] = useState('');
+  const [customCity, setCustomCity] = useState('');
+  const [customShortName, setCustomShortName] = useState('');
+  const [customPrimaryColor, setCustomPrimaryColor] = useState('#f97316');
+  const [customSecondaryColor, setCustomSecondaryColor] = useState('#0b1020');
+  const [customTertiaryColor, setCustomTertiaryColor] = useState('#38bdf8');
+  const [customLogoUrl, setCustomLogoUrl] = useState<string | undefined>(undefined);
+  const [customMiniLogoUrl, setCustomMiniLogoUrl] = useState<string | undefined>(undefined);
   const highestReputation = [...teams].sort((a, b) => b.reputation - a.reputation)[0];
   const mostHistoric = [...teams].sort((a, b) => b.championships - a.championships)[0];
   const bestRebuild = [...teams].sort((a, b) => a.reputation - b.reputation || a.championships - b.championships)[0];
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0];
+
+  useEffect(() => {
+    setCustomName(`${selectedTeam.city} Custom`);
+    setCustomCity(selectedTeam.city);
+    setCustomShortName(selectedTeam.shortName);
+    setCustomPrimaryColor(selectedTeam.primaryColor);
+    setCustomSecondaryColor(selectedTeam.secondaryColor);
+    setCustomTertiaryColor(selectedTeam.tertiaryColor ?? '#38bdf8');
+    setCustomLogoUrl(selectedTeam.logoUrl);
+    setCustomMiniLogoUrl(selectedTeam.miniLogoUrl);
+  }, [selectedTeam.id]);
+
+  function handleUpload(file: File | null, setter: (value: string | undefined) => void) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setter(typeof reader.result === 'string' ? reader.result : undefined);
+    reader.readAsDataURL(file);
+  }
 
   return (
     <section className="team-select-screen">
@@ -57,7 +97,7 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
           return (
             <article className={isSelected ? 'panel team-select-card selected' : 'panel team-select-card'} key={team.id}>
               <div className="team-select-card-header">
-                <TeamLogo teamId={team.id} teamName={team.name} size={76} className="team-select-logo" />
+                <TeamLogo teamId={team.id} teamName={team.name} logoSrc={team.logoUrl} size={76} className="team-select-logo" />
                 <div>
                   <p className="eyebrow">{team.nation}</p>
                   <h3>{team.name}</h3>
@@ -93,6 +133,55 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam }: TeamSe
               <button className={isSelected ? 'primary-action' : 'secondary-action'} onClick={() => onSelectTeam(team.id)}>
                 {isSelected ? 'Selected Team' : 'Select Team'}
               </button>
+              {isSelected && (
+                <>
+                  <div className="option-row" style={{ marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+                    {(['Top', 'Mid', 'Bottom'] as const).map((tier) => (
+                      <button
+                        className={customTier === tier ? 'option-button active' : 'option-button'}
+                        key={tier}
+                        onClick={() => setCustomTier(tier)}
+                      >
+                        Start {tier}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="assistant-note" style={{ marginBottom: '0.75rem' }}>
+                    <strong>Custom Club Setup</strong>
+                    <div className="option-row" style={{ marginTop: '0.5rem' }}>
+                      <input value={customName} onChange={(event) => setCustomName(event.target.value)} placeholder="Club name" />
+                      <input value={customCity} onChange={(event) => setCustomCity(event.target.value)} placeholder="City" />
+                      <input value={customShortName} onChange={(event) => setCustomShortName(event.target.value.toUpperCase().slice(0, 3))} placeholder="3-letter code" />
+                    </div>
+                    <div className="option-row" style={{ marginTop: '0.5rem' }}>
+                      <label className="muted">Primary <input type="color" value={customPrimaryColor} onChange={(event) => setCustomPrimaryColor(event.target.value)} /></label>
+                      <label className="muted">Secondary <input type="color" value={customSecondaryColor} onChange={(event) => setCustomSecondaryColor(event.target.value)} /></label>
+                      <label className="muted">Tertiary <input type="color" value={customTertiaryColor} onChange={(event) => setCustomTertiaryColor(event.target.value)} /></label>
+                    </div>
+                    <div className="option-row" style={{ marginTop: '0.5rem' }}>
+                      <label className="muted">Main Logo <input type="file" accept="image/*" onChange={(event) => handleUpload(event.target.files?.[0] ?? null, setCustomLogoUrl)} /></label>
+                      <label className="muted">Mini Logo <input type="file" accept="image/*" onChange={(event) => handleUpload(event.target.files?.[0] ?? null, setCustomMiniLogoUrl)} /></label>
+                    </div>
+                  </div>
+                  <button
+                    className="secondary-action"
+                    onClick={() => onCreateCustomTeam({
+                      baseTeamId: team.id,
+                      name: customName.trim() || `${team.city} Custom`,
+                      city: customCity.trim() || team.city,
+                      shortName: (customShortName.trim() || team.shortName).toUpperCase().slice(0, 3),
+                      tier: customTier,
+                      primaryColor: customPrimaryColor,
+                      secondaryColor: customSecondaryColor,
+                      tertiaryColor: customTertiaryColor,
+                      logoUrl: customLogoUrl,
+                      miniLogoUrl: customMiniLogoUrl,
+                    })}
+                  >
+                    Create Custom Club From This Slot
+                  </button>
+                </>
+              )}
             </article>
           );
         })}

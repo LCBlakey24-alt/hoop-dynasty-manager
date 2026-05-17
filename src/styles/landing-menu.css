@@ -6,11 +6,65 @@
     radial-gradient(circle at top right, rgba(249, 115, 22, 0.14), transparent 30rem),
     radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 24rem),
     #050a12;
+  animation: landingFadeIn 500ms ease;
+}
+
+.intro-screen {
+  display: grid;
+  place-items: center;
+}
+
+.intro-cinematic {
+  width: min(46rem, 100%);
+  text-align: center;
+  padding: clamp(1.4rem, 4.5vw, 2.4rem);
+  animation: introZoom 760ms ease both;
+  background:
+    radial-gradient(circle at center, rgba(56, 189, 248, 0.15), transparent 18rem),
+    radial-gradient(circle at top center, rgba(249, 115, 22, 0.28), transparent 14rem),
+    linear-gradient(145deg, rgba(6, 12, 24, 0.96), rgba(14, 24, 42, 0.88));
+}
+
+.intro-kicker {
+  letter-spacing: 0.22em;
+  animation: titlePulse 1300ms ease-in-out infinite alternate;
+}
+
+.intro-logo-mark {
+  width: 6.25rem;
+  height: 6.25rem;
+  margin: 0.8rem auto;
+  border-radius: 1.2rem;
+  border: 2px solid rgba(249, 115, 22, 0.78);
+  color: #ffedd5;
+  font-weight: 900;
+  font-size: 2.3rem;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 24px rgba(249, 115, 22, 0.34);
+}
+
+.intro-cinematic h1 {
+  margin-top: 0;
+  margin-bottom: 0.35rem;
+  font-size: clamp(2rem, 8vw, 4.9rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.intro-pref {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
 }
 
 .landing-hero {
   margin-bottom: 1rem;
   padding: clamp(1.2rem, 4vw, 2rem);
+  animation: cardRise 520ms ease both;
 }
 
 .landing-splash {
@@ -22,6 +76,7 @@
   background:
     radial-gradient(circle at center, rgba(249, 115, 22, 0.22), transparent 18rem),
     linear-gradient(145deg, rgba(6, 12, 24, 0.96), rgba(14, 24, 42, 0.88));
+  animation: cardRise 420ms ease both;
 }
 
 .landing-logo-mark {
@@ -63,6 +118,18 @@
   max-width: 36rem;
 }
 
+.landing-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.landing-highlights .chip {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
 .landing-actions .primary-action,
 .landing-actions .secondary-action,
 .mode-card .primary-action,
@@ -84,6 +151,13 @@
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.mode-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(248, 250, 252, 0.3);
+  box-shadow: 0 10px 28px rgba(8, 14, 25, 0.35);
 }
 
 .mode-card p {
@@ -117,6 +191,50 @@
   text-transform: uppercase;
 }
 
+.league-roadmap-panel {
+  margin-top: 1rem;
+  animation: cardRise 620ms ease both;
+}
+
+.league-roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.league-roadmap-item {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.55);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.league-roadmap-item span {
+  color: #93c5fd;
+  font-size: 0.85rem;
+}
+
+@keyframes landingFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes introZoom {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes titlePulse {
+  from { opacity: 0.65; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(-2px); }
+}
+
 @media (max-width: 980px) {
   .landing-actions,
   .mode-card-grid {
@@ -127,7 +245,15 @@
     flex-direction: column;
   }
 
+  .landing-highlights {
+    margin-bottom: 0.8rem;
+  }
+
   .mode-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .league-roadmap-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -160,6 +286,10 @@
   .mode-card-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
+  }
+
+  .league-roadmap-grid {
+    grid-template-columns: 1fr;
   }
 
   .mode-card {

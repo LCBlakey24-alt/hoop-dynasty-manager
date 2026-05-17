@@ -25,6 +25,7 @@ export type SimulatedGameResult = {
   awayBoxScore?: PlayerBoxScore[];
   topPerformers: PlayerBoxScore[];
   summary: string;
+  playByPlay?: string[];
 };
 
 type SimulateGameOptions = {
@@ -76,7 +77,32 @@ export function simulateGame(homeTeam: Team, awayTeam: Team, options: SimulateGa
     awayBoxScore,
     topPerformers,
     summary: createSummary(homeTeam, awayTeam, scores.homeScore, scores.awayScore, homeTactics, winProbability.matchupLabel),
+    playByPlay: createPlayByPlay(homeTeam, awayTeam, scores.homeScore, scores.awayScore, winnerTeamId, topPerformers),
   };
+}
+
+function createPlayByPlay(
+  homeTeam: Team,
+  awayTeam: Team,
+  homeScore: number,
+  awayScore: number,
+  winnerTeamId: string,
+  topPerformers: PlayerBoxScore[],
+) {
+  const winnerName = winnerTeamId === homeTeam.id ? homeTeam.shortName : awayTeam.shortName;
+  const loserName = winnerTeamId === homeTeam.id ? awayTeam.shortName : homeTeam.shortName;
+  const star = topPerformers[0];
+  const margin = Math.abs(homeScore - awayScore);
+
+  return [
+    `Tip-off: ${homeTeam.shortName} vs ${awayTeam.shortName} underway.`,
+    `Q1: Fast start as both teams trade early runs.`,
+    `Q2: ${star?.playerName ?? 'A key starter'} sparks a momentum swing.`,
+    `Halftime: ${homeTeam.shortName} ${Math.round(homeScore * 0.48)} - ${Math.round(awayScore * 0.48)} ${awayTeam.shortName}.`,
+    `Q3: Defensive pressure rises and transition chances increase.`,
+    `Q4: ${winnerName} execute late possessions with composure.`,
+    `Final: ${winnerName} beat ${loserName} by ${margin}.`,
+  ];
 }
 
 type TacticalModifier = {
