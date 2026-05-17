@@ -99,7 +99,12 @@ export function App() {
     if (typeof window === 'undefined') return 'My Team';
     return window.localStorage.getItem('hoop-dynasty-focus-mode') === 'League' ? 'League' : 'My Team';
   });
+  const [motionMode, setMotionMode] = useState<MotionMode>(() => {
+    if (typeof window === 'undefined') return 'Standard';
+    return window.localStorage.getItem('hoop-dynasty-motion-mode') === 'Reduced' ? 'Reduced' : 'Standard';
+  });
   const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
+  const [backupMeta, setBackupMeta] = useState<{ savedAt: string; teamId: string } | null>(() => typeof window === 'undefined' ? null : getBackupLocalSeasonSaveMeta());
   const { rng: simulationRng, reset: resetSimulationRng, rngCallsRef } = useSimulationRng(
     initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed,
     initialSave?.rngCalls ?? 0,
@@ -118,6 +123,7 @@ export function App() {
   useEffect(() => {
     const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed, rngCallsRef.current);
     setSavedAt(save.savedAt);
+    setBackupMeta(getBackupLocalSeasonSaveMeta());
   }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed]);
 
   useEffect(() => {
@@ -207,6 +213,8 @@ export function App() {
   }
 
   function handleResetSeason() {
+    const confirmed = window.confirm('Reset local season? This clears current save and backup data for this browser profile.');
+    if (!confirmed) return;
     clearLocalSeasonSave();
     setResults([]);
     setPlayoffResults([]);
@@ -615,6 +623,20 @@ export function App() {
             ))}
           </div>
         </div>
+        <div className="density-switcher panel">
+          <p className="eyebrow">Motion</p>
+          <div className="option-row">
+            {(['Standard', 'Reduced'] as const).map((mode) => (
+              <button
+                className={motionMode === mode ? 'option-button active' : 'option-button'}
+                key={mode}
+                onClick={() => setMotionMode(mode)}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
           {navItems.map((item) => {
@@ -634,6 +656,14 @@ export function App() {
             );
           })}
         </nav>
+        <article className="panel" style={{ marginTop: '0.6rem' }}>
+          <p className="eyebrow">Quick Help</p>
+          <div className="assistant-notes">
+            <div className="assistant-note"><strong>OVR</strong><span>Current player level right now.</span></div>
+            <div className="assistant-note"><strong>POT</strong><span>Projected ceiling with development.</span></div>
+            <div className="assistant-note"><strong>Board Confidence</strong><span>Low confidence increases pressure and risk.</span></div>
+          </div>
+        </article>
       </aside>
 
       <section className="content-area">
@@ -675,6 +705,7 @@ export function App() {
             nextMatchupLabel={nextMatchupLabel}
             results={results}
             savedAt={savedAt}
+            backupMeta={backupMeta}
             selectedTeam={selectedTeam}
             tiredCount={tiredCount}
             injuredCount={injuredCount}
@@ -824,6 +855,7 @@ type DashboardViewProps = {
   nextMatchupLabel: string | null;
   results: SimulatedGameResult[];
   savedAt: string | null;
+  backupMeta: { savedAt: string; teamId: string } | null;
   selectedTeam: Team;
   tiredCount: number;
   injuredCount: number;
@@ -862,6 +894,7 @@ function DashboardView({
   nextMatchupLabel,
   results,
   savedAt,
+  backupMeta,
   selectedTeam,
   tiredCount,
   injuredCount,

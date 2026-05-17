@@ -25,6 +25,14 @@ body.density-ultra {
   font-size: 12px;
 }
 
+body.reduced-motion *,
+body.reduced-motion *::before,
+body.reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
 * {
   box-sizing: border-box;
 }

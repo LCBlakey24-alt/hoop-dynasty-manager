@@ -308,6 +308,10 @@ function createInboxMessages({
 
   const injuryReports = latestConditionReport.filter((report) => report.injury);
   const tiredReports = latestConditionReport.filter((report) => !report.injury && report.nextFatigue >= 65);
+  const expiringContracts = selectedTeam.roster
+    .filter((player) => player.contract && (player.contract.status === 'Expiring' || player.contract.status === 'Renewal Needed' || player.contract.yearsRemaining <= 1))
+    .sort((a, b) => (a.contract?.yearsRemaining ?? 99) - (b.contract?.yearsRemaining ?? 99))
+    .slice(0, 3);
 
   injuryReports.slice(0, 3).forEach((report) => {
     messages.push({
@@ -334,6 +338,20 @@ function createInboxMessages({
       dueRound: currentRound + 1,
     });
   }
+
+  expiringContracts.forEach((player) => {
+    if (!player.contract) return;
+    const urgent = player.contract.status === 'Renewal Needed' || player.contract.yearsRemaining <= 0;
+    messages.push({
+      id: `contract-${player.id}-${player.contract.status}-${player.contract.yearsRemaining}`,
+      type: 'Squad',
+      title: `${player.name} contract ${player.contract.status.toLowerCase()}`,
+      body: `${player.name} has ${player.contract.yearsRemaining} season${player.contract.yearsRemaining === 1 ? '' : 's'} remaining. Plan renewal strategy or replacement cover.`,
+      tag: 'Contract',
+      priority: urgent ? 'High' : 'Normal',
+      dueRound: currentRound + 2,
+    });
+  });
 
   messages.push({
     id: `board-confidence-${boardConfidence}-${userStanding?.wins ?? 0}-${userStanding?.losses ?? 0}`,

@@ -21,6 +21,7 @@ export function SeasonSummaryScreen({ gamesPlayed, playoffResults, standings, to
   const userTeam = teams.find((team) => team.id === userTeamId);
   const championTeam = teams.find((team) => team.id === champion?.standing.teamId);
   const seasonVerdict = getSeasonVerdict(Boolean(champion), Boolean(userStanding && userPosition && userPosition <= 8), champion?.standing.teamId === userTeamId, regularSeasonComplete);
+  const awards = getSeasonAwards(teams, champion?.standing.teamId);
 
   if (!champion) {
     return (
@@ -84,6 +85,22 @@ export function SeasonSummaryScreen({ gamesPlayed, playoffResults, standings, to
       </section>
 
       <section className="season-summary-panels">
+        <article className="panel season-summary-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Season Awards</p>
+              <h3>League honours</h3>
+            </div>
+            <span className="chip">Immersion</span>
+          </div>
+          <div className="assistant-notes">
+            <SeasonNote title="MVP" body={`${awards.mvp.player} (${awards.mvp.team}) · OVR ${awards.mvp.overall}`} />
+            <SeasonNote title="Defensive Player" body={`${awards.dpoy.player} (${awards.dpoy.team}) · Morale ${awards.dpoy.morale}`} />
+            <SeasonNote title="Most Improved" body={`${awards.mip.player} (${awards.mip.team}) · POT ${awards.mip.potential}`} />
+            <SeasonNote title="Champion Coach" body={awards.championCoach} />
+          </div>
+        </article>
+
         <article className="panel season-summary-panel">
           <div className="panel-header">
             <div>
@@ -158,6 +175,21 @@ export function SeasonSummaryScreen({ gamesPlayed, playoffResults, standings, to
       </article>
     </section>
   );
+}
+
+function getSeasonAwards(teams: Team[], championTeamId?: string) {
+  const rosterRows = teams.flatMap((team) => team.roster.map((player) => ({ team: team.shortName, player })));
+  const mvp = [...rosterRows].sort((a, b) => b.player.overall - a.player.overall)[0];
+  const dpoy = [...rosterRows].sort((a, b) => b.player.morale - a.player.morale || b.player.form - a.player.form)[0];
+  const mip = [...rosterRows].sort((a, b) => b.player.potential - a.player.potential || (b.player.developmentProgress ?? 0) - (a.player.developmentProgress ?? 0))[0];
+  const championCoachTeam = teams.find((team) => team.id === championTeamId);
+
+  return {
+    mvp: { player: mvp.player.name, team: mvp.team, overall: mvp.player.overall },
+    dpoy: { player: dpoy.player.name, team: dpoy.team, morale: dpoy.player.morale },
+    mip: { player: mip.player.name, team: mip.team, potential: mip.player.potential },
+    championCoach: championCoachTeam ? `${championCoachTeam.name} staff win Coach of the Year momentum award.` : 'Champion pending.',
+  };
 }
 
 type SummaryCardProps = {

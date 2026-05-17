@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { TeamLogo } from './TeamLogo';
 import { getTeamProfile } from '../data/teamProfiles';
+import { careerTracks } from '../data/careerPathways';
+import { leagueExpansionProfiles } from '../data/worldBasketball';
 import type { Team } from '../types/basketball';
 
 type TeamSelectScreenProps = {
@@ -84,6 +86,64 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
           <GuideNote title="Win now" body="Choose a high-reputation club if you want pressure, better players and immediate expectations." />
           <GuideNote title="Build slowly" body="Choose a low-reputation club if you want a harder rebuild with more room to create a legacy." />
           <GuideNote title="Style first" body="Pick based on play style if you care more about identity than difficulty." />
+        </div>
+      </article>
+
+      <article className="panel result-detail-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Career Lab</p>
+            <h3>Playable progression targets</h3>
+          </div>
+          <span className="chip">Mode planning</span>
+        </div>
+        <div className="assistant-notes">
+          {careerTracks.map((track) => (
+            <div className="assistant-note" key={track.id}>
+              <strong>{track.title}</strong>
+              <span>{track.summary}</span>
+              <span>Next playable milestone: {track.stages[0]?.stage ?? track.entryStage}</span>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel result-detail-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Global League Expansion</p>
+            <h3>Play beyond one country</h3>
+          </div>
+          <span className="chip">Road to world mode</span>
+        </div>
+        <div className="option-row" style={{ marginBottom: '0.75rem' }}>
+          {(['All', 'Playable', 'In Development', 'Planned'] as const).map((status) => (
+            <button
+              className={expansionFilter === status ? 'option-button active' : 'option-button'}
+              key={status}
+              onClick={() => setExpansionFilter(status)}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+        <div className="assistant-notes">
+          {leagueExpansionProfiles.filter((league) => expansionFilter === 'All' ? true : league.status === expansionFilter).map((league) => (
+            <div className="assistant-note" key={league.leagueId}>
+              <strong>{league.leagueName} · {league.country} · {league.status}</strong>
+              <span>
+                Palette:
+                <span style={{ display: 'inline-flex', gap: '0.35rem', marginLeft: '0.35rem', verticalAlign: 'middle' }}>
+                  <span title="Primary" style={{ width: '0.9rem', height: '0.9rem', borderRadius: '999px', background: league.palette.primary, border: '1px solid rgba(255,255,255,0.4)' }} />
+                  <span title="Secondary" style={{ width: '0.9rem', height: '0.9rem', borderRadius: '999px', background: league.palette.secondary, border: '1px solid rgba(255,255,255,0.4)' }} />
+                  <span title="Tertiary" style={{ width: '0.9rem', height: '0.9rem', borderRadius: '999px', background: league.palette.tertiary, border: '1px solid rgba(255,255,255,0.4)' }} />
+                </span>
+              </span>
+              <span>{league.styleIdentity}</span>
+              <span>{league.signingModel}</span>
+              <span>{league.talentPipeline}</span>
+            </div>
+          ))}
         </div>
       </article>
 
