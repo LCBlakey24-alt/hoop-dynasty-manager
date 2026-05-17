@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { getTeamProfile } from '../data/teamProfiles';
 import { derivePlayerAttributes, getAttributeLabel, type AttributeKey } from '../game/playerAttributes';
+import type { SimulatedGameResult } from '../game/simulateGame';
 import type { Player, PlayerRole, Team } from '../types/basketball';
 
 type RosterScreenProps = {
   team: Team;
+  results: SimulatedGameResult[];
+  onChangePlayerPosition: (playerId: string, position: Player['position']) => void;
 };
 
 const roleOrder: Record<PlayerRole, number> = {
@@ -16,10 +19,17 @@ const roleOrder: Record<PlayerRole, number> = {
 
 const featuredAttributes: AttributeKey[] = ['shooting', 'finishing', 'passing', 'rebounding', 'perimeterDefence', 'basketballIq'];
 
-export function RosterScreen({ team }: RosterScreenProps) {
+export function RosterScreen({ team, results, onChangePlayerPosition }: RosterScreenProps) {
   const [filter, setFilter] = useState<'All' | 'Starters' | 'Tired' | 'Injured' | 'High Upside'>('All');
+  const [sortBy, setSortBy] = useState<'Role' | 'OVR' | 'POT' | 'Age' | 'PPG'>('Role');
   const profile = getTeamProfile(team.id);
-  const sortedRoster = [...team.roster].sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || b.overall - a.overall);
+  const sortedRoster = [...team.roster].sort((a, b) => {
+    if (sortBy === 'OVR') return b.overall - a.overall;
+    if (sortBy === 'POT') return b.potential - a.potential;
+    if (sortBy === 'Age') return a.age - b.age;
+    if (sortBy === 'PPG') return getPlayerAverages(b.id, results).ppg - getPlayerAverages(a.id, results).ppg;
+    return roleOrder[a.role] - roleOrder[b.role] || b.overall - a.overall;
+  });
   const filteredRoster = sortedRoster.filter((player) => {
     if (filter === 'Starters') return player.role === 'Starter';
     if (filter === 'Tired') return (player.fatigue ?? 0) >= 65;
@@ -184,6 +194,13 @@ export function RosterScreen({ team }: RosterScreenProps) {
               </button>
             ))}
           </div>
+          <div className="option-row" style={{ marginBottom: '1rem' }}>
+            {(['Role', 'OVR', 'POT', 'Age', 'PPG'] as const).map((option) => (
+              <button className={sortBy === option ? 'option-button active' : 'option-button'} key={option} onClick={() => setSortBy(option)}>
+                Sort: {option}
+              </button>
+            ))}
+          </div>
           <div className="roster-row roster-row-header">
             <span>Player</span>
             <span>Pos</span>
@@ -193,10 +210,11 @@ export function RosterScreen({ team }: RosterScreenProps) {
             <span>POT</span>
             <span>Development</span>
             <span>Form</span>
+            <span>Stats</span>
           </div>
 
           {filteredRoster.map((player) => (
-            <RosterRow player={player} key={player.id} />
+            <RosterRow player={player} key={player.id} results={results} onChangePlayerPosition={onChangePlayerPosition} />
           ))}
         </div>
       </article>
@@ -222,24 +240,45 @@ function SummaryCard({ label, value, helper }: SummaryCardProps) {
 
 type RosterRowProps = {
   player: Player;
+  results: SimulatedGameResult[];
+  onChangePlayerPosition: (playerId: string, position: Player['position']) => void;
 };
 
-function RosterRow({ player }: RosterRowProps) {
+function RosterRow({ player, results, onChangePlayerPosition }: RosterRowProps) {
+  const stats = getPlayerAverages(player.id, results);
   return (
     <div className="roster-row">
       <div className="roster-player-cell">
         <strong>{player.name}</strong>
         <span>{player.archetype} · {getPlayerStatusTag(player)} · {getPlayerRecommendation(player)}</span>
       </div>
-      <span className="position-pill">{player.position}</span>
+      <span className="position-pill">
+        <select value={player.position} onChange={(event) => onChangePlayerPosition(player.id, event.target.value as Player['position'])}>
+          {(['PG', 'SG', 'SF', 'PF', 'C'] as const).map((position) => (
+            <option key={position} value={position}>{position}</option>
+          ))}
+        </select>
+      </span>
       <span>{player.age}</span>
       <span className={`role-pill role-${player.role.toLowerCase()}`}>{player.role}</span>
       <strong>{player.overall}</strong>
       <strong>{player.potential}</strong>
       <Meter value={player.developmentProgress ?? 0} />
       <Meter value={player.form} />
+      <span>{stats.ppg.toFixed(1)} / {stats.rpg.toFixed(1)} / {stats.apg.toFixed(1)}</span>
     </div>
   );
+}
+
+function getPlayerAverages(playerId: string, results: SimulatedGameResult[]) {
+  const boxScores = results.flatMap((result) => [...(result.homeBoxScore ?? []), ...(result.awayBoxScore ?? [])])
+    .filter((player) => player.playerId === playerId);
+  const games = boxScores.length;
+  if (!games) return { ppg: 0, rpg: 0, apg: 0 };
+  const points = boxScores.reduce((total, entry) => total + entry.points, 0);
+  const rebounds = boxScores.reduce((total, entry) => total + entry.rebounds, 0);
+  const assists = boxScores.reduce((total, entry) => total + entry.assists, 0);
+  return { ppg: points / games, rpg: rebounds / games, apg: assists / games };
 }
 
 function getPlayerRecommendation(player: Player) {

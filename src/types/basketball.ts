@@ -57,6 +57,9 @@ export type Team = {
   shortName: string;
   primaryColor: string;
   secondaryColor: string;
+  tertiaryColor?: string;
+  logoUrl?: string;
+  miniLogoUrl?: string;
   identity: string;
   foundedYear: number;
   championships: number;
