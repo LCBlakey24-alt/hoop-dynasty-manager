@@ -83,6 +83,22 @@ export function clearLocalSeasonSave() {
   window.localStorage.removeItem(SAVE_KEY);
 }
 
+export function exportLocalSeasonSave() {
+  return window.localStorage.getItem(SAVE_KEY);
+}
+
+export function importLocalSeasonSave(rawSave: string) {
+  try {
+    const parsedSave = JSON.parse(rawSave) as Partial<LocalSeasonSave>;
+    const migratedSave = migrateSave(parsedSave);
+    if (!migratedSave) return null;
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(migratedSave));
+    return migratedSave;
+  } catch {
+    return null;
+  }
+}
+
 function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {
   if (!Array.isArray(save.results) || !save.tactics) return null;
 

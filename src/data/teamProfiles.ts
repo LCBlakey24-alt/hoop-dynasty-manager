@@ -15,6 +15,12 @@ export type TeamProfile = {
   localStyle: string;
   storyHooks: string[];
   countryStyle: CountryBasketballStyle;
+  kits: {
+    home: string;
+    away: string;
+    alternate: string;
+  };
+  retiredNumbers: number[];
 };
 
 export const countryStyles: Record<string, CountryBasketballStyle> = {
@@ -53,6 +59,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Fast breaks, attacking guards and pressure after misses.',
     storyHooks: ['Can Bristol turn pace into titles?', 'The fanbase wants a new golden era after years of streaky playoff runs.'],
     countryStyle: britishStyle,
+    kits: { home: 'Orange / Navy', away: 'Navy / Orange', alternate: 'White / Orange' },
+    retiredNumbers: [7, 12],
   },
   'london-lionsgate': {
     teamId: 'london-lionsgate',
@@ -63,6 +71,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Star-led half-court basketball with high-usage creators.',
     storyHooks: ['Can money and expectation become a dynasty?', 'London are loved, hated and watched by everyone.'],
     countryStyle: britishStyle,
+    kits: { home: 'Gold / Purple', away: 'Purple / Gold', alternate: 'Black / Gold' },
+    retiredNumbers: [4, 23],
   },
   'manchester-titans': {
     teamId: 'manchester-titans',
@@ -73,6 +83,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Interior defence, rebounding and disciplined half-court control.',
     storyHooks: ['Can the Titans modernise without losing their physical identity?', 'Their best teams have always been built from the paint outward.'],
     countryStyle: britishStyle,
+    kits: { home: 'Sky Blue / Steel', away: 'Steel / Sky Blue', alternate: 'White / Sky Blue' },
+    retiredNumbers: [11],
   },
   'birmingham-blaze': {
     teamId: 'birmingham-blaze',
@@ -83,6 +95,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Three-point barrages and streak scoring.',
     storyHooks: ['The Blaze can beat anyone on a hot night, but can they survive cold shooting?', 'A sleeping giant with a chaotic ceiling.'],
     countryStyle: britishStyle,
+    kits: { home: 'Red / Orange', away: 'Orange / Red', alternate: 'Black / Red' },
+    retiredNumbers: [3, 30],
   },
   'sheffield-steel': {
     teamId: 'sheffield-steel',
@@ -93,6 +107,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Balanced, gritty basketball built on discipline and role players.',
     storyHooks: ['Can a small-market culture club become more than an underdog?', 'Every great Sheffield side has been built, not bought.'],
     countryStyle: britishStyle,
+    kits: { home: 'Steel Grey / Black', away: 'Black / Steel Grey', alternate: 'White / Grey' },
+    retiredNumbers: [9],
   },
   'newcastle-knights': {
     teamId: 'newcastle-knights',
@@ -103,6 +119,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Slow pace, defensive structure and smart shot selection.',
     storyHooks: ['Can Newcastle grind their way back to title contention?', 'Their fans treat defensive stops like dunks.'],
     countryStyle: britishStyle,
+    kits: { home: 'Royal Blue / Silver', away: 'Silver / Royal Blue', alternate: 'Black / Blue' },
+    retiredNumbers: [5, 44],
   },
   'leeds-lightning': {
     teamId: 'leeds-lightning',
@@ -113,6 +131,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Transition scoring and athletic development.',
     storyHooks: ['Can youth survive against veteran British physicality?', 'The Lightning are one breakout prospect away from becoming dangerous.'],
     countryStyle: britishStyle,
+    kits: { home: 'Yellow / Blue', away: 'Blue / Yellow', alternate: 'White / Yellow' },
+    retiredNumbers: [14],
   },
   'nottingham-outlaws': {
     teamId: 'nottingham-outlaws',
@@ -123,6 +143,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Pressure defence, turnovers and unpredictable rotations.',
     storyHooks: ['Can chaos become a system?', 'Nobody enjoys playing Nottingham twice in a week.'],
     countryStyle: britishStyle,
+    kits: { home: 'Forest Green / Black', away: 'Black / Green', alternate: 'White / Green' },
+    retiredNumbers: [21],
   },
   'leicester-foxes': {
     teamId: 'leicester-foxes',
@@ -133,6 +155,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Technical, team-first offence with playmaking bigs.',
     storyHooks: ['Can Leicester outthink more athletic teams?', 'Their best seasons come when the ball never sticks.'],
     countryStyle: britishStyle,
+    kits: { home: 'Crimson / Gold', away: 'Gold / Crimson', alternate: 'White / Crimson' },
+    retiredNumbers: [10, 34],
   },
   'brighton-waves': {
     teamId: 'brighton-waves',
@@ -143,6 +167,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Spacing, threes and quick ball movement.',
     storyHooks: ['Can Brighton’s modern style survive British physicality?', 'A fashionable club chasing its first real legacy.'],
     countryStyle: britishStyle,
+    kits: { home: 'Teal / White', away: 'White / Teal', alternate: 'Navy / Teal' },
+    retiredNumbers: [2],
   },
   'cardiff-dragons': {
     teamId: 'cardiff-dragons',
@@ -153,6 +179,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Paint pressure, defensive intensity and physical guards.',
     storyHooks: ['Can Cardiff become Wales’ permanent title threat?', 'The Dragons are never quiet, even when they are losing.'],
     countryStyle: britishStyle,
+    kits: { home: 'Red / Black', away: 'Black / Red', alternate: 'White / Red' },
+    retiredNumbers: [15, 24],
   },
   'glasgow-giants': {
     teamId: 'glasgow-giants',
@@ -163,6 +191,8 @@ export const teamProfiles: Record<string, TeamProfile> = {
     localStyle: 'Post play, rim protection and punishing second-chance points.',
     storyHooks: ['Can the Giants bully their way to a modern championship?', 'Every Glasgow game feels like a fight for territory.'],
     countryStyle: britishStyle,
+    kits: { home: 'Deep Purple / White', away: 'White / Purple', alternate: 'Black / Purple' },
+    retiredNumbers: [33],
   },
 };
 
