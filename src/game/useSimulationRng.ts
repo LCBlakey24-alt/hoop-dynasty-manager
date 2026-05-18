@@ -16,10 +16,11 @@ export function useSimulationRng(seed: number, initialCalls: number) {
     return simulationRngBase.current();
   }, []);
 
-  function reset(nextSeed: number) {
-    rngCallsRef.current = 0;
+  function reset(nextSeed: number, nextCalls = 0) {
+    rngCallsRef.current = Math.max(0, nextCalls);
     rngReplayAppliedRef.current = true;
     simulationRngBase.current = createSeededRng(nextSeed);
+    for (let draw = 0; draw < rngCallsRef.current; draw += 1) simulationRngBase.current();
   }
 
   return {

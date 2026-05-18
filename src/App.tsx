@@ -911,6 +911,16 @@ function DashboardView({
   userStanding,
   userWonLatestGame,
 }: DashboardViewProps) {
+  const backupTeam = backupMeta ? teams.find((team) => team.id === backupMeta.teamId) : null;
+  const backupAgeHours = backupMeta ? Math.max(0, Math.round((Date.now() - new Date(backupMeta.savedAt).getTime()) / (1000 * 60 * 60))) : null;
+  const backupFreshness = backupAgeHours === null
+    ? null
+    : backupAgeHours <= 2
+      ? 'Fresh'
+      : backupAgeHours <= 24
+        ? 'Recent'
+        : 'Stale';
+
   return (
     <section className="dashboard-grid">
       <article className="panel next-game-panel">

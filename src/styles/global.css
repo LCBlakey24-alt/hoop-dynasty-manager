@@ -48,6 +48,54 @@ body {
     #050a12;
 }
 
+/* Minimalist black + orange launch theme override */
+body,
+.app-shell,
+.content-area,
+.landing-screen {
+  background: #050505 !important;
+}
+
+.panel,
+.result-detail-panel,
+.season-summary-panel,
+.playoff-panel,
+.champion-panel,
+.hero-card,
+.sidebar,
+.team-badge,
+.team-mini,
+.assistant-note,
+.box-score-row,
+.league-mini-row {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.eyebrow,
+.chip,
+.positive,
+.warning,
+.nav-item.active,
+.primary-action,
+.option-button.active {
+  color: #f97316 !important;
+}
+
+.chip,
+.option-button,
+.secondary-action {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.primary-action {
+  background: transparent !important;
+  border: 1px solid #f97316 !important;
+}
+
 button {
   font: inherit;
 }

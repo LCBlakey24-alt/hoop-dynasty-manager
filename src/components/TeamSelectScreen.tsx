@@ -37,6 +37,48 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
   const mostHistoric = [...teams].sort((a, b) => b.championships - a.championships)[0];
   const bestRebuild = [...teams].sort((a, b) => a.reputation - b.reputation || a.championships - b.championships)[0];
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0];
+  const filteredLeagues = leagueExpansionProfiles.filter((league) => expansionFilter === 'All' ? true : league.status === expansionFilter);
+  const activeLeaguePreview = leagueExpansionProfiles.find((league) => league.leagueId === selectedLeaguePreview) ?? filteredLeagues[0] ?? leagueExpansionProfiles[0];
+  const trimmedName = customName.trim();
+  const trimmedCity = customCity.trim();
+  const sanitizedShortName = customShortName.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const isValidShortName = sanitizedShortName.length === 3;
+
+  useEffect(() => {
+    setCustomName(`${selectedTeam.city} Custom`);
+    setCustomCity(selectedTeam.city);
+    setCustomShortName(selectedTeam.shortName);
+    setCustomPrimaryColor(selectedTeam.primaryColor);
+    setCustomSecondaryColor(selectedTeam.secondaryColor);
+    setCustomTertiaryColor(selectedTeam.tertiaryColor ?? '#38bdf8');
+    setCustomLogoUrl(selectedTeam.logoUrl);
+    setCustomMiniLogoUrl(selectedTeam.miniLogoUrl);
+    setUploadError(null);
+  }, [selectedTeam.id]);
+
+  useEffect(() => {
+    if (!filteredLeagues.length) return;
+    const selectionIsVisible = filteredLeagues.some((league) => league.leagueId === selectedLeaguePreview);
+    if (!selectionIsVisible) {
+      setSelectedLeaguePreview(filteredLeagues[0].leagueId);
+    }
+  }, [filteredLeagues, selectedLeaguePreview]);
+
+  function handleUpload(file: File | null, setter: (value: string | undefined) => void) {
+    if (!file) return;
+    if (file.size > MAX_LOGO_UPLOAD_BYTES) {
+      setUploadError('Logo upload must be 2MB or smaller.');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please upload an image file.');
+      return;
+    }
+    setUploadError(null);
+    const reader = new FileReader();
+    reader.onload = () => setter(typeof reader.result === 'string' ? reader.result : undefined);
+    reader.readAsDataURL(file);
+  }
 
   useEffect(() => {
     setCustomName(`${selectedTeam.city} Custom`);
@@ -265,6 +307,19 @@ function GuideNote({ body, title }: { body: string; title: string }) {
     <div className="assistant-note">
       <strong>{title}</strong>
       <span>{body}</span>
+    </div>
+  );
+}
+
+function LeaguePreviewCard({ league }: { league: LeagueExpansionProfile }) {
+  return (
+    <div className="assistant-notes" style={{ marginTop: '0.75rem' }}>
+      <div className="assistant-note">
+        <strong>{league.leagueName} deep preview</strong>
+        <span>{league.styleIdentity}</span>
+        <span>{league.signingModel}</span>
+        <span>{league.talentPipeline}</span>
+      </div>
     </div>
   );
 }

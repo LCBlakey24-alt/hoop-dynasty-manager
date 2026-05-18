@@ -25,6 +25,14 @@ export type LocalSeasonSave = {
   trainingFocus: TrainingFocus;
 };
 
+export type LocalSeasonSaveMeta = {
+  savedAt: string;
+  teamId: string;
+  version: number;
+  resultsCount: number;
+  bytes: number;
+};
+
 export function loadLocalSeasonSave(): LocalSeasonSave | null {
   try {
     const rawSave = window.localStorage.getItem(SAVE_KEY);
