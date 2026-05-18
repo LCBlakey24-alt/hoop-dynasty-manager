@@ -81,6 +81,26 @@ export function ClubProfileScreen({ team }: ClubProfileScreenProps) {
         </article>
 
         <article className="panel club-profile-panel">
+          <p className="eyebrow">Club Kits</p>
+          <h3>On-court identity</h3>
+          <div className="club-tag-list">
+            <span>Home: {profile.kits.home}</span>
+            <span>Away: {profile.kits.away}</span>
+            <span>Alt: {profile.kits.alternate}</span>
+          </div>
+        </article>
+
+        <article className="panel club-profile-panel">
+          <p className="eyebrow">Retired Numbers</p>
+          <h3>Legacy honours</h3>
+          <div className="club-tag-list">
+            {profile.retiredNumbers.length ? profile.retiredNumbers.map((number) => (
+              <span key={number}>#{number}</span>
+            )) : <span>None retired yet</span>}
+          </div>
+        </article>
+
+        <article className="panel club-profile-panel">
           <p className="eyebrow">Story Hooks</p>
           <h3>Dynasty narrative</h3>
           <div className="club-story-list">

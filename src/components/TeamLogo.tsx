@@ -4,6 +4,7 @@ import { getTeamLogoPath } from '../data/teamLogos';
 type TeamLogoProps = {
   teamId?: string;
   teamName: string;
+  logoSrc?: string;
   size?: number;
   className?: string;
 };
@@ -34,11 +35,12 @@ function getFallbackGradient(seed: string) {
 export function TeamLogo({
   teamId,
   teamName,
+  logoSrc,
   size = 48,
   className = '',
 }: TeamLogoProps) {
   const [failed, setFailed] = useState(false);
-  const logoPath = teamId ? getTeamLogoPath(teamId) : null;
+  const logoPath = logoSrc ?? (teamId ? getTeamLogoPath(teamId) : null);
   const initials = useMemo(() => getInitials(teamName), [teamName]);
   const fallbackBackground = useMemo(() => getFallbackGradient(teamId ?? teamName), [teamId, teamName]);
 

@@ -4,6 +4,7 @@ import type { SimulatedGameResult } from './simulateGame';
 import type { PlayerConditionChange, PlayerDevelopmentChange, RotationPlan, Team } from '../types/basketball';
 
 const SAVE_KEY = 'hoop-dynasty-manager-save-v1';
+const SAVE_BACKUP_KEY = 'hoop-dynasty-manager-save-v1-backup';
 const SAVE_VERSION = 5;
 const DEFAULT_TEAM_ID = 'bristol-breakers';
 const DEFAULT_TRAINING_FOCUS: TrainingFocus = 'Balanced';
@@ -22,6 +23,14 @@ export type LocalSeasonSave = {
   tactics: TacticalSettings;
   savedAt: string;
   trainingFocus: TrainingFocus;
+};
+
+export type LocalSeasonSaveMeta = {
+  savedAt: string;
+  teamId: string;
+  version: number;
+  resultsCount: number;
+  bytes: number;
 };
 
 export function loadLocalSeasonSave(): LocalSeasonSave | null {
@@ -71,6 +80,10 @@ export function saveLocalSeason(
   };
 
   try {
+    const existing = window.localStorage.getItem(SAVE_KEY);
+    if (existing) {
+      window.localStorage.setItem(SAVE_BACKUP_KEY, existing);
+    }
     window.localStorage.setItem(SAVE_KEY, JSON.stringify(save));
   } catch {
     // Ignore quota/private mode write failures; continue in-memory session.
@@ -81,6 +94,60 @@ export function saveLocalSeason(
 
 export function clearLocalSeasonSave() {
   window.localStorage.removeItem(SAVE_KEY);
+  window.localStorage.removeItem(SAVE_BACKUP_KEY);
+}
+
+export function exportLocalSeasonSave() {
+  return window.localStorage.getItem(SAVE_KEY);
+}
+
+export function restoreBackupLocalSeasonSave() {
+  try {
+    const backupRaw = window.localStorage.getItem(SAVE_BACKUP_KEY);
+    if (!backupRaw) return null;
+    const parsedSave = JSON.parse(backupRaw) as Partial<LocalSeasonSave>;
+    const migratedSave = migrateSave(parsedSave);
+    if (!migratedSave) return null;
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(migratedSave));
+    return migratedSave;
+  } catch {
+    return null;
+  }
+}
+
+export function getBackupLocalSeasonSaveMeta() {
+  try {
+    const backupRaw = window.localStorage.getItem(SAVE_BACKUP_KEY);
+    if (!backupRaw) return null;
+    const parsedSave = JSON.parse(backupRaw) as Partial<LocalSeasonSave>;
+    const migratedSave = migrateSave(parsedSave);
+    if (!migratedSave) return null;
+    return {
+      savedAt: migratedSave.savedAt,
+      teamId: migratedSave.selectedTeamId,
+      version: migratedSave.version,
+      resultsCount: migratedSave.results.length,
+      bytes: new TextEncoder().encode(backupRaw).length,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function importLocalSeasonSave(rawSave: string) {
+  try {
+    const parsedSave = JSON.parse(rawSave) as Partial<LocalSeasonSave>;
+    const migratedSave = migrateSave(parsedSave);
+    if (!migratedSave) return null;
+    const existing = window.localStorage.getItem(SAVE_KEY);
+    if (existing) {
+      window.localStorage.setItem(SAVE_BACKUP_KEY, existing);
+    }
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(migratedSave));
+    return migratedSave;
+  } catch {
+    return null;
+  }
 }
 
 function migrateSave(save: Partial<LocalSeasonSave>): LocalSeasonSave | null {

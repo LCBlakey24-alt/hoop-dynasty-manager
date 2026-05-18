@@ -13,9 +13,23 @@ type MatchResultScreenProps = {
 
 export function MatchResultScreen({ focusMode, latestConditionReport, latestResult, results, selectedTeamId, teams }: MatchResultScreenProps) {
   const [historyFilter, setHistoryFilter] = useState<'All' | 'My Team'>(focusMode === 'League' ? 'All' : 'My Team');
+  const [feedIndex, setFeedIndex] = useState(0);
+  const [autoFeed, setAutoFeed] = useState(true);
   useEffect(() => {
     setHistoryFilter(focusMode === 'League' ? 'All' : 'My Team');
   }, [focusMode]);
+  useEffect(() => {
+    setFeedIndex(0);
+    setAutoFeed(true);
+  }, [latestResult?.homeTeamId, latestResult?.awayTeamId, latestResult?.homeScore, latestResult?.awayScore]);
+
+  const feedLines = latestResult?.playByPlay ?? [];
+
+  useEffect(() => {
+    if (!autoFeed || feedLines.length <= 1 || feedIndex >= feedLines.length - 1) return;
+    const timer = window.setTimeout(() => setFeedIndex((current) => Math.min(feedLines.length - 1, current + 1)), 900);
+    return () => window.clearTimeout(timer);
+  }, [autoFeed, feedIndex, feedLines.length]);
   const filteredHistory = useMemo(() => {
     const base = [...results].reverse();
 
@@ -56,6 +70,7 @@ export function MatchResultScreen({ focusMode, latestConditionReport, latestResu
   const homeBoxScore = latestResult.homeBoxScore ?? latestResult.topPerformers.filter((player) => player.teamId === homeTeam.id);
   const awayBoxScore = latestResult.awayBoxScore ?? latestResult.topPerformers.filter((player) => player.teamId === awayTeam.id);
   const factors = getMatchFactors(homeBoxScore, awayBoxScore, homeTeam.id === selectedTeamId ? 'home' : awayTeam.id === selectedTeamId ? 'away' : 'neutral');
+  const expandedFactors = getExpandedFactors(homeBoxScore, awayBoxScore, homeTeam.shortName, awayTeam.shortName);
 
   return (
     <section className="match-result-screen">
@@ -134,9 +149,47 @@ export function MatchResultScreen({ focusMode, latestConditionReport, latestResu
             ))}
           </div>
         </article>
+
+        <article className="panel result-detail-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Advanced Notes</p>
+              <h3>Deeper game split</h3>
+            </div>
+            <span className="chip">Expanded</span>
+          </div>
+          <div className="assistant-notes">
+            {expandedFactors.map((factor) => (
+              <ResultNote key={factor.title} title={factor.title} body={factor.body} />
+            ))}
+          </div>
+        </article>
       </section>
 
       <ConditionReportPanel conditionReport={latestConditionReport} />
+
+      <article className="panel result-detail-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Live Match Feed</p>
+            <h3>Play-by-play recap</h3>
+          </div>
+          <span className="chip">{autoFeed ? 'Live' : 'Paused'}</span>
+        </div>
+        <div className="option-row" style={{ marginBottom: '0.75rem' }}>
+          <button className="option-button" onClick={() => setAutoFeed((current) => !current)}>{autoFeed ? 'Pause Feed' : 'Resume Feed'}</button>
+          <button className="option-button" onClick={() => setFeedIndex((current) => Math.max(0, current - 1))}>Previous</button>
+          <button className="option-button" onClick={() => setFeedIndex((current) => Math.min(feedLines.length - 1, current + 1))}>Next</button>
+        </div>
+        <div className="assistant-notes">
+          {(feedLines.length ? feedLines.slice(0, feedIndex + 1) : ['No live commentary available for this result yet.']).map((line, index) => (
+            <div className="assistant-note" key={`pbp-${index}`}>
+              <strong>{index + 1}.</strong>
+              <span>{line}</span>
+            </div>
+          ))}
+        </div>
+      </article>
 
       <section className="result-grid">
         <TeamBoxScorePanel boxScore={homeBoxScore} team={homeTeam} />
@@ -183,6 +236,37 @@ export function MatchResultScreen({ focusMode, latestConditionReport, latestResu
       </article>
     </section>
   );
+}
+
+function getExpandedFactors(
+  homeBoxScore: PlayerBoxScore[],
+  awayBoxScore: PlayerBoxScore[],
+  homeShortName: string,
+  awayShortName: string,
+) {
+  const homeBenchPoints = homeBoxScore.filter((player) => player.minutes < 24).reduce((sum, player) => sum + player.points, 0);
+  const awayBenchPoints = awayBoxScore.filter((player) => player.minutes < 24).reduce((sum, player) => sum + player.points, 0);
+  const homeStarterPoints = homeBoxScore.filter((player) => player.minutes >= 24).reduce((sum, player) => sum + player.points, 0);
+  const awayStarterPoints = awayBoxScore.filter((player) => player.minutes >= 24).reduce((sum, player) => sum + player.points, 0);
+  const homeAssistTotal = homeBoxScore.reduce((sum, player) => sum + player.assists, 0);
+  const awayAssistTotal = awayBoxScore.reduce((sum, player) => sum + player.assists, 0);
+  const homeReboundTotal = homeBoxScore.reduce((sum, player) => sum + player.rebounds, 0);
+  const awayReboundTotal = awayBoxScore.reduce((sum, player) => sum + player.rebounds, 0);
+
+  return [
+    {
+      title: 'Bench Impact',
+      body: `${homeShortName} bench ${homeBenchPoints} pts vs ${awayShortName} bench ${awayBenchPoints} pts. Starter scoring: ${homeStarterPoints}-${awayStarterPoints}.`,
+    },
+    {
+      title: 'Ball Movement',
+      body: `Assist totals were ${homeAssistTotal}-${awayAssistTotal}. The side with cleaner passing often controlled shot quality late.`,
+    },
+    {
+      title: 'Glass Battle',
+      body: `Rebounds finished ${homeReboundTotal}-${awayReboundTotal}. Second-chance control likely influenced momentum swings.`,
+    },
+  ];
 }
 
 function SummaryCard({ label, value, helper }: { label: string; value: string; helper: string }) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Activity, Banknote, BarChart3, CalendarDays, ClipboardList, Dumbbell, FileText, Inbox, Medal, ScrollText, Shield, Trophy, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { BoardFinanceScreen } from './components/BoardFinanceScreen';
 import { ContractsScreen } from './components/ContractsScreen';
@@ -14,6 +14,7 @@ import { ScheduleScreen } from './components/ScheduleScreen';
 import { SeasonSummaryScreen } from './components/SeasonSummaryScreen';
 import { TacticsScreen } from './components/TacticsScreen';
 import { TeamSelectScreen } from './components/TeamSelectScreen';
+import { TeamLogo } from './components/TeamLogo';
 import { TrainingScreen, type TrainingFocus } from './components/TrainingScreen';
 import { getFixturesForRound, seasonFixtures } from './data/fixtures';
 import { teams } from './data/teams';
@@ -21,7 +22,7 @@ import { calculateStandings } from './game/calculateStandings';
 import { calculateBoardConfidence } from './game/boardConfidence';
 import { releasePlayer, renewPlayerContract } from './game/contracts';
 import { signFreeAgent } from './game/freeAgents';
-import { clearLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
+import { clearLocalSeasonSave, exportLocalSeasonSave, getBackupLocalSeasonSaveMeta, importLocalSeasonSave, loadLocalSeasonSave, restoreBackupLocalSeasonSave, saveLocalSeason, type LocalSeasonSaveMeta } from './game/localSave';
 import { applyPostGameCondition } from './game/playerCondition';
 import { applyPostGameDevelopment } from './game/playerDevelopment';
 import { applyTrainingFocus } from './game/training';
@@ -39,6 +40,14 @@ import type { Fixture, Player, PlayerConditionChange, PlayerDevelopmentChange, R
 type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Contracts' | 'Free Agents' | 'Board & Finance' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 type DisplayDensity = 'Normal' | 'Compact' | 'Ultra';
 type FocusMode = 'My Team' | 'League';
+type MotionMode = 'Standard' | 'Reduced';
+type SimKeyEvent = 'Next My Game' | 'Playoffs Start' | 'Season End';
+const MAX_IMPORT_SAVE_BYTES = 5 * 1024 * 1024;
+const SIM_KEY_EVENT_HINTS: Record<SimKeyEvent, string> = {
+  'Next My Game': 'Advance until your club appears again on the schedule.',
+  'Playoffs Start': 'Fast-forward through the remaining regular-season fixtures.',
+  'Season End': 'Sim every remaining regular-season and playoff game.',
+};
 
 const navItems = [
   { label: 'Dashboard', icon: Activity, enabled: true },
@@ -80,6 +89,9 @@ export function App() {
   const [tactics, setTactics] = useState<TacticalSettings>(initialSave?.tactics ?? defaultTactics);
   const [savedAt, setSavedAt] = useState<string | null>(initialSave?.savedAt ?? null);
   const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(initialSave?.trainingFocus ?? 'Balanced');
+  const [simNotice, setSimNotice] = useState<string | null>(null);
+  const [simKeyEvent, setSimKeyEvent] = useState<SimKeyEvent>('Next My Game');
+  const [isSimulating, setIsSimulating] = useState(false);
   const [displayDensity, setDisplayDensity] = useState<DisplayDensity>(() => {
     if (typeof window === 'undefined') return 'Compact';
     const saved = window.localStorage.getItem('hoop-dynasty-display-density');
@@ -89,11 +101,17 @@ export function App() {
     if (typeof window === 'undefined') return 'My Team';
     return window.localStorage.getItem('hoop-dynasty-focus-mode') === 'League' ? 'League' : 'My Team';
   });
+  const [motionMode, setMotionMode] = useState<MotionMode>(() => {
+    if (typeof window === 'undefined') return 'Standard';
+    return window.localStorage.getItem('hoop-dynasty-motion-mode') === 'Reduced' ? 'Reduced' : 'Standard';
+  });
   const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
+  const [backupMeta, setBackupMeta] = useState<LocalSeasonSaveMeta | null>(() => typeof window === 'undefined' ? null : getBackupLocalSeasonSaveMeta());
   const { rng: simulationRng, reset: resetSimulationRng, rngCallsRef } = useSimulationRng(
     initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed,
     initialSave?.rngCalls ?? 0,
   );
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedTeam = selectedTeamState.id === selectedTeamId ? selectedTeamState : getTeam(selectedTeamId);
   const rotation = normaliseRotation(selectedTeam, rotationPlan);
@@ -107,6 +125,7 @@ export function App() {
   useEffect(() => {
     const save = saveLocalSeason(results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed, rngCallsRef.current);
     setSavedAt(save.savedAt);
+    setBackupMeta(getBackupLocalSeasonSaveMeta());
   }, [results, tactics, playoffResults, selectedTeamId, trainingFocus, rotation, selectedTeam, latestConditionReport, latestDevelopmentReport, rngSeed]);
 
   useEffect(() => {
@@ -118,6 +137,17 @@ export function App() {
   useEffect(() => {
     window.localStorage.setItem('hoop-dynasty-focus-mode', focusMode);
   }, [focusMode]);
+
+  useEffect(() => {
+    document.body.classList.toggle('reduced-motion', motionMode === 'Reduced');
+    window.localStorage.setItem('hoop-dynasty-motion-mode', motionMode);
+  }, [motionMode]);
+
+  useEffect(() => {
+    document.body.style.setProperty('--team-primary', selectedTeam.primaryColor);
+    document.body.style.setProperty('--team-secondary', selectedTeam.secondaryColor);
+    document.body.style.setProperty('--team-tertiary', selectedTeam.tertiaryColor ?? '#38bdf8');
+  }, [selectedTeam.primaryColor, selectedTeam.secondaryColor, selectedTeam.tertiaryColor]);
 
   const latestResult = [...playoffResults, ...results]
     .reverse()
@@ -175,6 +205,12 @@ export function App() {
     }
   }, [rngSeed]);
 
+  useEffect(() => {
+    if (!simNotice) return;
+    const timer = window.setTimeout(() => setSimNotice(null), 900);
+    return () => window.clearTimeout(timer);
+  }, [results, playoffResults, simNotice]);
+
   function resetManagedState(teamId = selectedTeamId) {
     const freshTeam = getTeam(teamId);
     setSelectedTeamState(freshTeam);
@@ -184,6 +220,8 @@ export function App() {
   }
 
   function handleResetSeason() {
+    const confirmed = window.confirm('Reset local season? This clears current save and backup data for this browser profile.');
+    if (!confirmed) return;
     clearLocalSeasonSave();
     setResults([]);
     setPlayoffResults([]);
@@ -210,6 +248,95 @@ export function App() {
     setActiveView('Team Select');
   }
 
+  function handleExportSave() {
+    const raw = exportLocalSeasonSave();
+    if (!raw) {
+      setSimNotice('No save found to export.');
+      return;
+    }
+    const blob = new Blob([raw], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `hardwood-dynasty-save-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setSimNotice('Save exported.');
+  }
+
+  function handleImportSave(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_IMPORT_SAVE_BYTES) {
+      setSimNotice('Import failed. Save file is larger than 5MB.');
+      event.target.value = '';
+      return;
+    }
+    const looksLikeJson = file.type === 'application/json' || file.name.toLowerCase().endsWith('.json');
+    if (!looksLikeJson) {
+      setSimNotice('Import failed. Please choose a .json save file.');
+      event.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => {
+      setSimNotice('Import failed. Could not read selected file.');
+      event.target.value = '';
+    };
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? importLocalSeasonSave(reader.result) : null;
+      if (!result) {
+        setSimNotice('Import failed. Invalid save file.');
+        event.target.value = '';
+        return;
+      }
+      const nextSeed = result.rngSeed > 0 ? result.rngSeed : generateSeed();
+      setResults(result.results);
+      setPlayoffResults(result.playoffResults);
+      setSelectedTeamId(result.selectedTeamId);
+      const importedTeam = result.selectedTeamState?.id === result.selectedTeamId ? result.selectedTeamState : getTeam(result.selectedTeamId);
+      setSelectedTeamState(importedTeam);
+      setRotationPlan(normaliseRotation(importedTeam, result.rotationPlan ?? createDefaultRotation(importedTeam)));
+      setLatestConditionReport(result.latestConditionReport);
+      setLatestDevelopmentReport(result.latestDevelopmentReport);
+      setTactics(result.tactics);
+      setSavedAt(result.savedAt);
+      setTrainingFocus(result.trainingFocus);
+      setRngSeed(nextSeed);
+      resetSimulationRng(nextSeed, result.rngCalls);
+      setActiveView('Dashboard');
+      setSimNotice('Save imported.');
+      setBackupMeta(getBackupLocalSeasonSaveMeta());
+      event.target.value = '';
+    };
+    reader.readAsText(file);
+  }
+
+  function handleRestoreBackupSave() {
+    const result = restoreBackupLocalSeasonSave();
+    if (!result) {
+      setSimNotice('No backup save found.');
+      return;
+    }
+    const nextSeed = result.rngSeed > 0 ? result.rngSeed : generateSeed();
+    setResults(result.results);
+    setPlayoffResults(result.playoffResults);
+    setSelectedTeamId(result.selectedTeamId);
+    const importedTeam = result.selectedTeamState?.id === result.selectedTeamId ? result.selectedTeamState : getTeam(result.selectedTeamId);
+    setSelectedTeamState(importedTeam);
+    setRotationPlan(normaliseRotation(importedTeam, result.rotationPlan ?? createDefaultRotation(importedTeam)));
+    setLatestConditionReport(result.latestConditionReport);
+    setLatestDevelopmentReport(result.latestDevelopmentReport);
+    setTactics(result.tactics);
+    setSavedAt(result.savedAt);
+    setTrainingFocus(result.trainingFocus);
+    setRngSeed(nextSeed);
+    resetSimulationRng(nextSeed, result.rngCalls);
+    setActiveView('Dashboard');
+    setSimNotice('Backup restored.');
+    setBackupMeta(getBackupLocalSeasonSaveMeta());
+  }
+
   function handleSelectTeam(teamId: string) {
     const freshTeam = getTeam(teamId);
     setSelectedTeamId(teamId);
@@ -224,12 +351,7 @@ export function App() {
     setTrainingFocus('Balanced');
     const nextSeed = generateSeed();
     setRngSeed(nextSeed);
-    rngCallsRef.current = 0;
-    simulationRngBase.current = createSeededRng(nextSeed);
-    simulationRng.current = () => {
-      rngCallsRef.current += 1;
-      return simulationRngBase.current();
-    };
+    resetSimulationRng(nextSeed);
     setActiveView('Dashboard');
   }
 
@@ -243,6 +365,54 @@ export function App() {
 
   function handleSignFreeAgent(player: Player) {
     setSelectedTeamState((currentTeam) => signFreeAgent(currentTeam, player));
+  }
+
+  function handleChangePlayerPosition(playerId: string, position: Player['position']) {
+    setSelectedTeamState((currentTeam) => ({
+      ...currentTeam,
+      roster: currentTeam.roster.map((player) => (player.id === playerId ? { ...player, position } : player)),
+    }));
+  }
+
+  function handleCreateCustomTeam(input: {
+    baseTeamId: string;
+    name: string;
+    city: string;
+    shortName: string;
+    tier: 'Top' | 'Mid' | 'Bottom';
+    primaryColor: string;
+    secondaryColor: string;
+    tertiaryColor: string;
+    logoUrl?: string;
+    miniLogoUrl?: string;
+  }) {
+    const baseTeam = getTeam(input.baseTeamId);
+    const tierReputation = input.tier === 'Top' ? 82 : input.tier === 'Mid' ? 72 : 62;
+    const overallDelta = input.tier === 'Top' ? 4 : input.tier === 'Mid' ? 0 : -4;
+    const customTeam: Team = {
+      ...baseTeam,
+      id: baseTeam.id,
+      name: input.name,
+      city: input.city,
+      shortName: input.shortName.toUpperCase().slice(0, 3),
+      primaryColor: input.primaryColor,
+      secondaryColor: input.secondaryColor,
+      tertiaryColor: input.tertiaryColor,
+      logoUrl: input.logoUrl,
+      miniLogoUrl: input.miniLogoUrl,
+      reputation: tierReputation,
+      identity: `${input.tier} tier expansion club`,
+      legacyStory: `${input.name} are a newly-controlled custom franchise slot.`,
+      roster: baseTeam.roster.map((player) => ({
+        ...player,
+        overall: Math.max(55, Math.min(92, player.overall + overallDelta)),
+        potential: Math.max(player.overall + overallDelta + 2, Math.min(95, player.potential + overallDelta)),
+      })),
+    };
+    setSelectedTeamId(baseTeam.id);
+    setSelectedTeamState(customTeam);
+    setRotationPlan(createDefaultRotation(customTeam));
+    setActiveView('Dashboard');
   }
 
   function simulateFixtureWithManagedState(fixture: Fixture, managedTeam: Team) {
@@ -270,64 +440,143 @@ export function App() {
     return { result, managedTeam: development.team, conditionReport: condition.changes, developmentReport: development.changes };
   }
 
+  function simulateFixturesBatch(
+    currentResults: SimulatedGameResult[],
+    fixtures: Fixture[],
+    stopAfter?: (fixture: Fixture) => boolean,
+  ) {
+    if (fixtures.length === 0) {
+      return {
+        newResults: [] as SimulatedGameResult[],
+        managedTeam: selectedTeam,
+        conditionReport: latestConditionReport,
+        developmentReport: latestDevelopmentReport,
+      };
+    }
+
+    let managedTeam = selectedTeam;
+    let conditionReport = latestConditionReport;
+    let developmentReport = latestDevelopmentReport;
+    const newResults: SimulatedGameResult[] = [];
+
+    for (const fixture of fixtures) {
+      if (hasResultForFixture(fixture, currentResults)) continue;
+      const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
+      managedTeam = simulation.managedTeam;
+      conditionReport = simulation.conditionReport;
+      developmentReport = simulation.developmentReport;
+      newResults.push(simulation.result);
+      if (stopAfter?.(fixture)) break;
+    }
+
+    return { newResults, managedTeam, conditionReport, developmentReport };
+  }
+
+  function runSimAction(action: () => void) {
+    if (isSimulating) return;
+    setIsSimulating(true);
+    try {
+      action();
+    } finally {
+      window.setTimeout(() => setIsSimulating(false), 0);
+    }
+  }
+
   function handleSimulateNextFixture() {
+    if (isSimulating) return;
     if (!nextFixture) return;
+    runSimAction(() => {
+      setSimNotice('Simulating next fixture...');
+      setResults((currentResults) => {
+        if (hasResultForFixture(nextFixture, currentResults)) return currentResults;
 
-    setResults((currentResults) => {
-      if (hasResultForFixture(nextFixture, currentResults)) return currentResults;
-
-      const simulation = simulateFixtureWithManagedState(nextFixture, selectedTeam);
-      setSelectedTeamState(simulation.managedTeam);
-      setLatestConditionReport(simulation.conditionReport);
-      setLatestDevelopmentReport(simulation.developmentReport);
-      return [...currentResults, simulation.result];
+        const simulation = simulateFixtureWithManagedState(nextFixture, selectedTeam);
+        setSelectedTeamState(simulation.managedTeam);
+        setLatestConditionReport(simulation.conditionReport);
+        setLatestDevelopmentReport(simulation.developmentReport);
+        return [...currentResults, simulation.result];
+      });
     });
   }
 
   function handleSimulateCurrentRound() {
-    setResults((currentResults) => {
-      let managedTeam = selectedTeam;
-      let conditionReport = latestConditionReport;
-      let developmentReport = latestDevelopmentReport;
-      const newResults = currentRoundFixtures
-        .filter((fixture) => !hasResultForFixture(fixture, currentResults))
-        .map((fixture) => {
-          const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
-          managedTeam = simulation.managedTeam;
-          conditionReport = simulation.conditionReport;
-          developmentReport = simulation.developmentReport;
-          return simulation.result;
-        });
+    if (isSimulating) return;
+    runSimAction(() => {
+      setSimNotice(`Simulating round ${currentRound}...`);
+      setResults((currentResults) => {
+        const { newResults, managedTeam, conditionReport, developmentReport } = simulateFixturesBatch(currentResults, currentRoundFixtures);
 
-      setSelectedTeamState(managedTeam);
-      setLatestConditionReport(conditionReport);
-      setLatestDevelopmentReport(developmentReport);
-      return [...currentResults, ...newResults];
+        if (newResults.length === 0) return currentResults;
+        setSelectedTeamState(managedTeam);
+        setLatestConditionReport(conditionReport);
+        setLatestDevelopmentReport(developmentReport);
+        return [...currentResults, ...newResults];
+      });
     });
-    const next = { ...league, teams };
-    setLeague(next);
-    saveLeague(next);
   }
 
   function handleSimulateRestOfSeason() {
-    setResults((currentResults) => {
-      let managedTeam = selectedTeam;
-      let conditionReport = latestConditionReport;
-      let developmentReport = latestDevelopmentReport;
-      const newResults = seasonFixtures
-        .filter((fixture) => !hasResultForFixture(fixture, currentResults))
-        .map((fixture) => {
-          const simulation = simulateFixtureWithManagedState(fixture, managedTeam);
-          managedTeam = simulation.managedTeam;
-          conditionReport = simulation.conditionReport;
-          developmentReport = simulation.developmentReport;
-          return simulation.result;
-        });
+    if (isSimulating) return;
+    runSimAction(() => {
+      setSimNotice('Simulating rest of regular season...');
+      setResults((currentResults) => {
+        const { newResults, managedTeam, conditionReport, developmentReport } = simulateFixturesBatch(currentResults, seasonFixtures);
 
-      setSelectedTeamState(managedTeam);
-      setLatestConditionReport(conditionReport);
-      setLatestDevelopmentReport(developmentReport);
-      return [...currentResults, ...newResults];
+        if (newResults.length === 0) return currentResults;
+        setSelectedTeamState(managedTeam);
+        setLatestConditionReport(conditionReport);
+        setLatestDevelopmentReport(developmentReport);
+        return [...currentResults, ...newResults];
+      });
+    });
+  }
+
+  function handleSimulateToNextMyGame() {
+    if (isSimulating) return;
+    runSimAction(() => {
+      setSimNotice('Simulating to next user game...');
+      setResults((currentResults) => {
+        const { newResults, managedTeam, conditionReport, developmentReport } = simulateFixturesBatch(
+          currentResults,
+          seasonFixtures,
+          (fixture) => fixture.homeTeamId === selectedTeam.id || fixture.awayTeamId === selectedTeam.id,
+        );
+
+        if (newResults.length > 0) {
+          setSelectedTeamState(managedTeam);
+          setLatestConditionReport(conditionReport);
+          setLatestDevelopmentReport(developmentReport);
+        }
+
+        return [...currentResults, ...newResults];
+      });
+    });
+  }
+
+  function handleSimulateToKeyEvent() {
+    if (isSimulating) return;
+    if (simKeyEvent === 'Next My Game') {
+      handleSimulateToNextMyGame();
+      return;
+    }
+
+    if (simKeyEvent === 'Season End') {
+      handleSimulateRestOfSeason();
+      return;
+    }
+
+    runSimAction(() => {
+      setSimNotice('Simulating to playoffs start...');
+      setResults((currentResults) => {
+        const regularSeasonComplete = seasonFixtures.every((fixture) => hasResultForFixture(fixture, currentResults));
+        if (regularSeasonComplete) return currentResults;
+        const { newResults, managedTeam, conditionReport, developmentReport } = simulateFixturesBatch(currentResults, seasonFixtures);
+        if (newResults.length === 0) return currentResults;
+        setSelectedTeamState(managedTeam);
+        setLatestConditionReport(conditionReport);
+        setLatestDevelopmentReport(developmentReport);
+        return [...currentResults, ...newResults];
+      });
     });
   }
 
@@ -352,10 +601,12 @@ export function App() {
   }
 
   function handleSimulateQuarterFinals() {
+    setSimNotice('Simulating quarter finals...');
     handleSimulatePlayoffMatchups(createQuarterFinalMatchups(standings));
   }
 
   function handleSimulateSemiFinals() {
+    setSimNotice('Simulating semi finals...');
     handleSimulatePlayoffMatchups(createSemiFinalMatchups(standings, playoffResults));
   }
 
@@ -364,25 +615,30 @@ export function App() {
 
     if (!final) return;
 
+    setSimNotice('Simulating final...');
     handleSimulatePlayoffMatchups([final]);
   }
 
   if (activeView === 'Landing') {
     return (
-      <main>
-        <h1>Hardwood Dynasty</h1>
-        <p>v0.1 MVP</p>
-        <button onClick={handleCreateLeague}>Create New League (20 Teams)</button>
-        <button onClick={() => setLeague(loadLeague())}>Load Saved League</button>
-      </main>
+      <LandingScreen
+        hasSave={hasSave}
+        reducedMotion={motionMode === 'Reduced'}
+        selectedTeamName={selectedTeam.name}
+        onContinue={() => setActiveView(hasSave ? 'Dashboard' : 'Team Select')}
+        onNewFranchise={handleStartNewFranchise}
+      />
     );
   }
 
   return (
     <main className="app-shell">
+      <input ref={importInputRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportSave} />
       <aside className="sidebar">
         <div className="brand-lockup">
-          <div className="brand-mark">HD</div>
+          <div className="brand-mark">
+            <TeamLogo teamId={selectedTeam.id} teamName={selectedTeam.name} logoSrc={selectedTeam.miniLogoUrl ?? selectedTeam.logoUrl} size={28} />
+          </div>
           <div>
             <p className="eyebrow">Prototype 0.1</p>
             <h1>Hoop Dynasty</h1>
@@ -417,6 +673,20 @@ export function App() {
             ))}
           </div>
         </div>
+        <div className="density-switcher panel">
+          <p className="eyebrow">Motion</p>
+          <div className="option-row">
+            {(['Standard', 'Reduced'] as const).map((mode) => (
+              <button
+                className={motionMode === mode ? 'option-button active' : 'option-button'}
+                key={mode}
+                onClick={() => setMotionMode(mode)}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
           {navItems.map((item) => {
@@ -436,6 +706,14 @@ export function App() {
             );
           })}
         </nav>
+        <article className="panel" style={{ marginTop: '0.6rem' }}>
+          <p className="eyebrow">Quick Help</p>
+          <div className="assistant-notes">
+            <div className="assistant-note"><strong>OVR</strong><span>Current player level right now.</span></div>
+            <div className="assistant-note"><strong>POT</strong><span>Projected ceiling with development.</span></div>
+            <div className="assistant-note"><strong>Board Confidence</strong><span>Low confidence increases pressure and risk.</span></div>
+          </div>
+        </article>
       </aside>
 
       <section className="content-area">
@@ -446,7 +724,12 @@ export function App() {
             <p className="hero-copy">{selectedTeam.identity}. Built for {selectedTeam.playStyle.toLowerCase()} basketball.</p>
           </div>
           <div className="team-badge" style={{ borderColor: selectedTeam.primaryColor }}>
-            {selectedTeam.shortName}
+            <TeamLogo
+              teamId={selectedTeam.id}
+              teamName={selectedTeam.name}
+              logoSrc={selectedTeam.logoUrl ?? selectedTeam.miniLogoUrl}
+              size={44}
+            />
           </div>
         </header>
 
@@ -457,9 +740,15 @@ export function App() {
             diagnostics={diagnostics}
             developmentReady={developmentReady}
             handleResetSeason={handleResetSeason}
+            handleExportSave={handleExportSave}
+            handleOpenImportSave={() => importInputRef.current?.click()}
+            handleRestoreBackupSave={handleRestoreBackupSave}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
             handleSimulateNextFixture={handleSimulateNextFixture}
             handleSimulateRestOfSeason={handleSimulateRestOfSeason}
+            handleSimulateToKeyEvent={handleSimulateToKeyEvent}
+            handleSimulateToNextMyGame={handleSimulateToNextMyGame}
+            isSimulating={isSimulating}
             latestResult={latestResult}
             nextAwayTeam={nextAwayTeam}
             nextFixture={nextFixture}
@@ -467,6 +756,7 @@ export function App() {
             nextMatchupLabel={nextMatchupLabel}
             results={results}
             savedAt={savedAt}
+            backupMeta={backupMeta}
             selectedTeam={selectedTeam}
             tiredCount={tiredCount}
             injuredCount={injuredCount}
@@ -477,6 +767,9 @@ export function App() {
             seasonObjective={seasonObjective}
             objectiveProgress={objectiveProgress}
             userGameResult={userGameResult}
+            simKeyEvent={simKeyEvent}
+            simNotice={simNotice}
+            setSimKeyEvent={setSimKeyEvent}
             userStanding={userStanding}
             userWonLatestGame={userWonLatestGame}
           />
@@ -484,6 +777,7 @@ export function App() {
         {activeView === 'Inbox' && (
           <InboxScreen
             boardConfidence={boardConfidence}
+            currentRound={currentRound}
             latestConditionReport={latestConditionReport}
             latestDevelopmentReport={latestDevelopmentReport}
             latestResult={latestResult}
@@ -492,12 +786,13 @@ export function App() {
             selectedTeam={selectedTeam}
             standings={standings}
             userStanding={userStanding}
+            focusMode={focusMode}
             onNavigate={(view) => setActiveView(view)}
           />
         )}
 
-        {activeView === 'Team Select' && <TeamSelectScreen selectedTeamId={selectedTeam.id} teams={effectiveTeams} onSelectTeam={handleSelectTeam} />}
-        {activeView === 'Roster' && <RosterScreen team={selectedTeam} />}
+        {activeView === 'Team Select' && <TeamSelectScreen selectedTeamId={selectedTeam.id} teams={effectiveTeams} onSelectTeam={handleSelectTeam} onCreateCustomTeam={handleCreateCustomTeam} />}
+        {activeView === 'Roster' && <RosterScreen team={selectedTeam} results={results} onChangePlayerPosition={handleChangePlayerPosition} />}
         {activeView === 'Development' && <DevelopmentScreen latestDevelopmentReport={latestDevelopmentReport} team={selectedTeam} />}
         {activeView === 'Contracts' && <ContractsScreen team={selectedTeam} onReleasePlayer={handleReleasePlayer} onRenewContract={handleRenewContract} />}
         {activeView === 'Free Agents' && <FreeAgentsScreen signedFreeAgentIds={signedFreeAgentIds} team={selectedTeam} onSignFreeAgent={handleSignFreeAgent} />}
@@ -529,6 +824,7 @@ export function App() {
             results={results}
             selectedTeamId={selectedTeam.id}
             teams={effectiveTeams}
+            focusMode={focusMode}
           />
         )}
         {activeView === 'League' && (
@@ -537,6 +833,7 @@ export function App() {
             standings={standings}
             totalGames={seasonFixtures.length}
             userTeamId={selectedTeam.id}
+            focusMode={focusMode}
           />
         )}
         {activeView === 'Playoffs' && (
@@ -594,9 +891,15 @@ type DashboardViewProps = {
   developmentReady: number;
   diagnostics: ReturnType<typeof calculateSimulationDiagnostics>;
   handleResetSeason: () => void;
+  handleExportSave: () => void;
+  handleOpenImportSave: () => void;
+  handleRestoreBackupSave: () => void;
   handleSimulateCurrentRound: () => void;
   handleSimulateNextFixture: () => void;
   handleSimulateRestOfSeason: () => void;
+  handleSimulateToKeyEvent: () => void;
+  handleSimulateToNextMyGame: () => void;
+  isSimulating: boolean;
   latestResult: SimulatedGameResult | null;
   nextAwayTeam: Team | null;
   nextFixture: Fixture | undefined;
@@ -604,6 +907,7 @@ type DashboardViewProps = {
   nextMatchupLabel: string | null;
   results: SimulatedGameResult[];
   savedAt: string | null;
+  backupMeta: LocalSeasonSaveMeta | null;
   selectedTeam: Team;
   tiredCount: number;
   injuredCount: number;
@@ -614,6 +918,9 @@ type DashboardViewProps = {
   seasonObjective: { title: string; targetRank: number; summary: string };
   objectiveProgress: number;
   userGameResult: SimulatedGameResult | null;
+  simKeyEvent: SimKeyEvent;
+  simNotice: string | null;
+  setSimKeyEvent: (event: SimKeyEvent) => void;
   userStanding: ReturnType<typeof calculateStandings>[number] | undefined;
   userWonLatestGame: boolean;
 };
@@ -624,9 +931,15 @@ function DashboardView({
   developmentReady,
   diagnostics,
   handleResetSeason,
+  handleExportSave,
+  handleOpenImportSave,
+  handleRestoreBackupSave,
   handleSimulateCurrentRound,
   handleSimulateNextFixture,
   handleSimulateRestOfSeason,
+  handleSimulateToKeyEvent,
+  handleSimulateToNextMyGame,
+  isSimulating,
   latestResult,
   nextAwayTeam,
   nextFixture,
@@ -634,6 +947,7 @@ function DashboardView({
   nextMatchupLabel,
   results,
   savedAt,
+  backupMeta,
   selectedTeam,
   tiredCount,
   injuredCount,
@@ -644,13 +958,27 @@ function DashboardView({
   seasonObjective,
   objectiveProgress,
   userGameResult,
+  simKeyEvent,
+  simNotice,
+  setSimKeyEvent,
   userStanding,
   userWonLatestGame,
 }: DashboardViewProps) {
+  const backupTeam = backupMeta ? teams.find((team) => team.id === backupMeta.teamId) : null;
+  const backupAgeHours = backupMeta ? Math.max(0, Math.round((Date.now() - new Date(backupMeta.savedAt).getTime()) / (1000 * 60 * 60))) : null;
+  const backupFreshness = backupAgeHours === null
+    ? null
+    : backupAgeHours <= 2
+      ? 'Fresh'
+      : backupAgeHours <= 24
+        ? 'Recent'
+        : 'Stale';
+
   return (
     <section className="dashboard-grid">
       <article className="panel next-game-panel">
         <p className="eyebrow">Next Fixture</p>
+        {simNotice && <span className="chip">{simNotice}</span>}
         {nextFixture && nextHomeTeam && nextAwayTeam ? (
           <>
             <div className="matchup-row">
@@ -666,9 +994,23 @@ function DashboardView({
               <span>{tactics.offensiveFocus}</span>
               <span>{tactics.defensiveStyle}</span>
             </div>
-            <button className="primary-action" onClick={handleSimulateNextFixture}>Simulate Next Fixture</button>
-            <button className="secondary-action" onClick={handleSimulateCurrentRound}>Simulate Round {currentRound}</button>
-            <button className="secondary-action" onClick={handleSimulateRestOfSeason}>Simulate Rest of Season</button>
+            <button className="primary-action" disabled={isSimulating} onClick={handleSimulateNextFixture}>{isSimulating ? 'Simulating...' : 'Simulate Next Fixture'}</button>
+            <button className="secondary-action" disabled={isSimulating} onClick={handleSimulateCurrentRound}>Simulate Round {currentRound}</button>
+            <button className="secondary-action" disabled={isSimulating} onClick={handleSimulateToNextMyGame}>Simulate To Next My Game</button>
+            <div className="option-row">
+              <select
+                aria-label="Select simulation target"
+                value={simKeyEvent}
+                onChange={(event) => setSimKeyEvent(event.target.value as SimKeyEvent)}
+              >
+                {(['Next My Game', 'Playoffs Start', 'Season End'] as const).map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <button className="secondary-action" disabled={isSimulating} onClick={handleSimulateToKeyEvent}>Simulate To Key Event</button>
+            </div>
+            <p className="muted">{SIM_KEY_EVENT_HINTS[simKeyEvent]}</p>
+            <button className="secondary-action" disabled={isSimulating} onClick={handleSimulateRestOfSeason}>Simulate Rest of Season</button>
           </>
         ) : (
           <>
@@ -725,6 +1067,22 @@ function DashboardView({
         <p className="muted">
           {savedAt ? `Last saved ${new Date(savedAt).toLocaleString()}` : 'No saved season yet.'}
         </p>
+        <p className="muted">
+          {backupMeta ? `Backup available: ${new Date(backupMeta.savedAt).toLocaleString()}` : 'No backup snapshot yet.'}
+        </p>
+        {backupMeta && (
+          <p className="muted">
+            Team {backupTeam?.shortName ?? backupMeta.teamId} · {backupMeta.resultsCount} games · v{backupMeta.version} · {Math.max(1, Math.round(backupMeta.bytes / 1024))} KB · {backupAgeHours}h old · {backupFreshness}
+          </p>
+        )}
+        {backupFreshness === 'Stale' && (
+          <p className="warning">Backup is over 24 hours old. Consider exporting or simulating to refresh safety coverage.</p>
+        )}
+        <div className="option-row" style={{ marginBottom: '0.75rem' }}>
+          <button className="option-button" onClick={handleExportSave}>Export Save</button>
+          <button className="option-button" onClick={handleOpenImportSave}>Import Save</button>
+          <button className="option-button" disabled={!backupMeta} onClick={handleRestoreBackupSave}>Restore Backup</button>
+        </div>
         <button className="secondary-action danger-action" onClick={handleResetSeason}>Reset Local Season</button>
       </article>
 
@@ -784,12 +1142,12 @@ function DashboardView({
       <table border={1}>
         <thead><tr><th>Rank</th><th>Team</th><th>W</th><th>L</th><th>PCT</th></tr></thead>
         <tbody>
-          {standings.map((t, idx) => <tr key={t.id}><td>{idx + 1}</td><td>{t.name}</td><td>{t.wins}</td><td>{t.losses}</td><td>{t.pct.toFixed(3)}</td></tr>)}
+          {standings.map((t, idx) => <tr key={t.teamId}><td>{idx + 1}</td><td>{t.teamName}</td><td>{t.wins}</td><td>{t.losses}</td><td>{t.winPercentage.toFixed(3)}</td></tr>)}
         </tbody>
       </table>
 
-      <p>Total Games Simulated: {league.gameLog.length}</p>
-    </main>
+      <p>Total Games Simulated: {results.length}</p>
+    </section>
   );
 }
 

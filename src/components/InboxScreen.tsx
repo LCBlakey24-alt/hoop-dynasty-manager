@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import type { SimulatedGameResult } from '../game/simulateGame';
 import type { PlayerConditionChange, PlayerDevelopmentChange, Standing, Team } from '../types/basketball';
 
@@ -10,10 +11,12 @@ type InboxMessage = {
   body: string;
   tag: string;
   priority: 'Low' | 'Normal' | 'High';
+  dueRound?: number;
 };
 
 type InboxScreenProps = {
   boardConfidence: number;
+  currentRound: number;
   focusMode: 'My Team' | 'League';
   latestConditionReport: PlayerConditionChange[];
   latestDevelopmentReport: PlayerDevelopmentChange[];
@@ -28,6 +31,7 @@ type InboxScreenProps = {
 
 export function InboxScreen({
   boardConfidence,
+  currentRound,
   focusMode,
   latestConditionReport,
   latestDevelopmentReport,
@@ -39,8 +43,10 @@ export function InboxScreen({
   userStanding,
   onNavigate,
 }: InboxScreenProps) {
-  const messages = createInboxMessages({
+  const inboxStorageKey = `hoop-dynasty-inbox-state:${selectedTeam.id}`;
+  const messages = useMemo(() => createInboxMessages({
     boardConfidence,
+    currentRound,
     focusMode,
     latestConditionReport,
     latestDevelopmentReport,
@@ -50,12 +56,60 @@ export function InboxScreen({
     selectedTeam,
     standings,
     userStanding,
-  });
-  const highPriorityMessages = messages.filter((message) => message.priority === 'High');
-  const medicalMessages = messages.filter((message) => message.type === 'Medical');
-  const developmentMessages = messages.filter((message) => message.type === 'Development');
-  const boardMessages = messages.filter((message) => message.type === 'Board');
-  const nextAction = getRecommendedAction(messages);
+  }), [boardConfidence, currentRound, focusMode, latestConditionReport, latestDevelopmentReport, latestResult, nextAwayTeam, nextHomeTeam, selectedTeam, standings, userStanding]);
+  const [readIds, setReadIds] = useState<string[]>([]);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [snoozedIds, setSnoozedIds] = useState<string[]>([]);
+  const [filter, setFilter] = useState<'All' | 'Unread' | 'Pinned' | 'Snoozed'>('All');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const state = window.localStorage.getItem(inboxStorageKey);
+    if (!state) return;
+    try {
+      const parsed = JSON.parse(state) as { readIds?: string[]; pinnedIds?: string[]; snoozedIds?: string[] };
+      setReadIds(parsed.readIds ?? []);
+      setPinnedIds(parsed.pinnedIds ?? []);
+      setSnoozedIds(parsed.snoozedIds ?? []);
+    } catch {
+      // ignore malformed storage
+    }
+  }, [inboxStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(inboxStorageKey, JSON.stringify({ readIds, pinnedIds, snoozedIds }));
+  }, [inboxStorageKey, readIds, pinnedIds, snoozedIds]);
+
+  useEffect(() => {
+    const validIds = new Set(messages.map((message) => message.id));
+    setReadIds((current) => current.filter((id) => validIds.has(id)));
+    setPinnedIds((current) => current.filter((id) => validIds.has(id)));
+    setSnoozedIds((current) => current.filter((id) => validIds.has(id)));
+  }, [messages]);
+
+  const readSet = useMemo(() => new Set(readIds), [readIds]);
+  const pinnedSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+  const snoozedSet = useMemo(() => new Set(snoozedIds), [snoozedIds]);
+  const visibleMessages = messages
+    .filter((message) => (filter === 'Snoozed' ? snoozedSet.has(message.id) : !snoozedSet.has(message.id)))
+    .filter((message) => (filter === 'Unread' ? !readSet.has(message.id) : filter === 'Pinned' ? pinnedSet.has(message.id) : true))
+    .filter((message) => {
+      const query = searchTerm.trim().toLowerCase();
+      if (!query) return true;
+      return `${message.title} ${message.body} ${message.tag} ${message.type}`.toLowerCase().includes(query);
+    })
+    .sort((a, b) => Number(pinnedSet.has(b.id)) - Number(pinnedSet.has(a.id)) || getPriorityWeight(b.priority) - getPriorityWeight(a.priority));
+  const highPriorityMessages = visibleMessages.filter((message) => message.priority === 'High');
+  const medicalMessages = visibleMessages.filter((message) => message.type === 'Medical');
+  const developmentMessages = visibleMessages.filter((message) => message.type === 'Development');
+  const boardMessages = visibleMessages.filter((message) => message.type === 'Board');
+  const unreadCount = visibleMessages.filter((message) => !readSet.has(message.id)).length;
+  const pinnedCount = visibleMessages.filter((message) => pinnedSet.has(message.id)).length;
+  const snoozedCount = messages.filter((message) => snoozedSet.has(message.id)).length;
+  const overdueCount = visibleMessages.filter((message) => (message.dueRound ?? Number.MAX_SAFE_INTEGER) < currentRound && !readSet.has(message.id)).length;
+  const nextAction = getRecommendedAction(visibleMessages);
 
   return (
     <section className="match-result-screen">
@@ -73,6 +127,9 @@ export function InboxScreen({
         <SummaryCard label="Medical" value={medicalMessages.length.toString()} helper="Fitness and injury updates" />
         <SummaryCard label="Development" value={developmentMessages.length.toString()} helper="Player growth notes" />
         <SummaryCard label="Board" value={boardMessages.length.toString()} helper="Confidence and pressure" />
+        <SummaryCard label="Unread" value={unreadCount.toString()} helper="Needs review" />
+        <SummaryCard label="Pinned" value={pinnedCount.toString()} helper="Flagged items" />
+        <SummaryCard label="Overdue" value={overdueCount.toString()} helper="Past due round" />
       </section>
 
       <section className="result-grid">
@@ -101,7 +158,7 @@ export function InboxScreen({
             <span className="chip">Sorted</span>
           </div>
           <div className="assistant-notes">
-            {messages.slice(0, 3).map((message) => (
+            {visibleMessages.slice(0, 3).map((message) => (
               <div className="assistant-note" key={`priority-${message.id}`}>
                 <strong>{message.title}</strong>
                 <span>{message.type} · {message.priority} · {message.tag}</span>
@@ -115,22 +172,70 @@ export function InboxScreen({
         <div className="panel-header">
           <div>
             <p className="eyebrow">Inbox</p>
-            <h3>{messages.length} messages</h3>
+            <h3>{visibleMessages.length} messages</h3>
           </div>
           <span className="chip">Auto generated</span>
         </div>
+        <div className="option-row" style={{ marginBottom: '1rem' }}>
+          {(['All', 'Unread', 'Pinned', 'Snoozed'] as const).map((option) => (
+            <button className={filter === option ? 'option-button active' : 'option-button'} key={option} onClick={() => setFilter(option)}>{option}</button>
+          ))}
+          <button className="option-button" onClick={() => setReadIds((current) => [...new Set([...current, ...visibleMessages.map((message) => message.id)])])}>Mark Visible Read</button>
+          <button className="option-button" onClick={() => setReadIds((current) => current.filter((id) => !visibleMessages.some((message) => message.id === id)))}>Mark Visible Unread</button>
+          <button className="option-button" onClick={() => setPinnedIds([])}>Clear Pins</button>
+          <button className="option-button" onClick={() => setSnoozedIds([])}>Unsnooze All ({snoozedCount})</button>
+        </div>
+        <div className="option-row" style={{ marginBottom: '1rem' }}>
+          <input
+            aria-label="Search inbox messages"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search messages, tags or types"
+          />
+          {searchTerm && (
+            <button className="option-button" onClick={() => setSearchTerm('')}>Clear Search</button>
+          )}
+        </div>
 
         <div className="box-score-list full-box-score-list">
-          {messages.map((message) => (
+          {visibleMessages.length === 0 && (
+            <div className="box-score-row">
+              <div>
+                <strong>No messages match current filters</strong>
+                <span>Try changing filter, unsnoozing, or clearing your search text.</span>
+              </div>
+            </div>
+          )}
+          {visibleMessages.map((message) => (
             <div className="box-score-row" key={message.id}>
               <div>
                 <strong>{message.title}</strong>
                 <span>{message.body}</span>
               </div>
               {getMessageAction(message, onNavigate)}
+              <button className="option-button" onClick={() => setReadIds((current) => current.includes(message.id) ? current.filter((id) => id !== message.id) : [...current, message.id])}>{readSet.has(message.id) ? 'Mark Unread' : 'Mark Read'}</button>
+              <button className="option-button" onClick={() => setPinnedIds((current) => current.includes(message.id) ? current.filter((id) => id !== message.id) : [...current, message.id])}>{pinnedSet.has(message.id) ? 'Unpin' : 'Pin'}</button>
+              <button className="option-button" onClick={() => setSnoozedIds((current) => current.includes(message.id) ? current.filter((id) => id !== message.id) : [...current, message.id])}>{snoozedSet.has(message.id) ? 'Unsnooze' : 'Snooze'}</button>
+              {message.type === 'Fixture' && (
+                <button
+                  className="option-button"
+                  onClick={() => {
+                    setReadIds((current) => current.includes(message.id) ? current : [...current, message.id]);
+                    setSnoozedIds((current) => current.includes(message.id) ? current : [...current, message.id]);
+                  }}
+                >
+                  Resolve
+                </button>
+              )}
               <StatPill label="TYPE" value={message.type} />
               <StatPill label="TAG" value={message.tag} />
-              <StatPill label="PRIO" value={message.priority} />
+              <StatPill label="PRIO" value={`${message.priority}${readSet.has(message.id) ? ' · Read' : ' · New'}`} />
+              <StatPill
+                label="DUE"
+                value={message.dueRound
+                  ? ((message.dueRound < currentRound && !readSet.has(message.id)) ? `R${message.dueRound} OVERDUE` : `R${message.dueRound}`)
+                  : '—'}
+              />
             </div>
           ))}
         </div>
@@ -143,6 +248,7 @@ type CreateInboxInput = Omit<InboxScreenProps, 'onNavigate'>;
 
 function createInboxMessages({
   boardConfidence,
+  currentRound,
   focusMode,
   latestConditionReport,
   latestDevelopmentReport,
@@ -161,12 +267,13 @@ function createInboxMessages({
     const userWon = latestResult.winnerTeamId === selectedTeam.id;
 
     messages.push({
-      id: 'latest-result',
+      id: `latest-result-${latestResult.homeTeamId}-${latestResult.awayTeamId}-${latestResult.homeScore}-${latestResult.awayScore}`,
       type: 'Result',
       title: userPlayed ? (userWon ? 'Positive result boosts dressing room mood' : 'Staff review needed after latest result') : 'Latest league result logged',
       body: latestResult.summary,
       tag: userPlayed ? (userWon ? 'Win' : 'Review') : 'League',
       priority: userPlayed && !userWon ? 'High' : 'Normal',
+      dueRound: currentRound + 1,
     });
   }
 
@@ -201,15 +308,20 @@ function createInboxMessages({
 
   const injuryReports = latestConditionReport.filter((report) => report.injury);
   const tiredReports = latestConditionReport.filter((report) => !report.injury && report.nextFatigue >= 65);
+  const expiringContracts = selectedTeam.roster
+    .filter((player) => player.contract && (player.contract.status === 'Expiring' || player.contract.status === 'Renewal Needed' || player.contract.yearsRemaining <= 1))
+    .sort((a, b) => (a.contract?.yearsRemaining ?? 99) - (b.contract?.yearsRemaining ?? 99))
+    .slice(0, 3);
 
   injuryReports.slice(0, 3).forEach((report) => {
     messages.push({
-      id: `injury-${report.playerId}`,
+      id: `injury-${report.playerId}-${report.injury?.severity ?? 'none'}-${report.injury?.gamesRemaining ?? 0}`,
       type: 'Medical',
       title: `${report.playerName} requires medical management`,
       body: report.note,
       tag: report.injury?.severity ?? 'Injury',
       priority: report.injury?.severity === 'Major' || report.injury?.severity === 'Minor' ? 'High' : 'Normal',
+      dueRound: currentRound + 1,
     });
   });
 
@@ -217,36 +329,53 @@ function createInboxMessages({
     const mostTired = [...tiredReports].sort((a, b) => b.nextFatigue - a.nextFatigue)[0];
 
     messages.push({
-      id: 'fatigue-warning',
+      id: `fatigue-warning-${mostTired.playerId}-${mostTired.nextFatigue}`,
       type: 'Medical',
       title: 'Fatigue levels rising across the rotation',
       body: `${mostTired.playerName} is at ${mostTired.nextFatigue} fatigue. Consider lowering minutes or using Conditioning training.`,
       tag: 'Fatigue',
       priority: mostTired.nextFatigue >= 80 ? 'High' : 'Normal',
+      dueRound: currentRound + 1,
     });
   }
 
+  expiringContracts.forEach((player) => {
+    if (!player.contract) return;
+    const urgent = player.contract.status === 'Renewal Needed' || player.contract.yearsRemaining <= 0;
+    messages.push({
+      id: `contract-${player.id}-${player.contract.status}-${player.contract.yearsRemaining}`,
+      type: 'Squad',
+      title: `${player.name} contract ${player.contract.status.toLowerCase()}`,
+      body: `${player.name} has ${player.contract.yearsRemaining} season${player.contract.yearsRemaining === 1 ? '' : 's'} remaining. Plan renewal strategy or replacement cover.`,
+      tag: 'Contract',
+      priority: urgent ? 'High' : 'Normal',
+      dueRound: currentRound + 2,
+    });
+  });
+
   messages.push({
-    id: 'board-confidence',
+    id: `board-confidence-${boardConfidence}-${userStanding?.wins ?? 0}-${userStanding?.losses ?? 0}`,
     type: 'Board',
     title: boardConfidence >= 75 ? 'Board confidence remains strong' : boardConfidence >= 55 ? 'Board monitoring league progress' : 'Board pressure increasing',
     body: `Current board confidence is ${boardConfidence}%. ${userStanding ? `Your record is ${userStanding.wins}-${userStanding.losses}.` : 'The season has not started yet.'}`,
     tag: `${boardConfidence}%`,
     priority: boardConfidence < 55 ? 'High' : 'Normal',
+    dueRound: boardConfidence < 55 ? currentRound + 1 : undefined,
   });
 
   if (nextHomeTeam && nextAwayTeam) {
     messages.push({
-      id: 'next-fixture',
+      id: `next-fixture-${nextHomeTeam.id}-${nextAwayTeam.id}`,
       type: 'Fixture',
       title: 'Next match preparation available',
       body: `${nextHomeTeam.name} face ${nextAwayTeam.name}. Review tactics, minutes and fatigue before simulating.`,
       tag: 'Preview',
       priority: 'Normal',
+      dueRound: currentRound,
     });
   } else {
     messages.push({
-      id: 'regular-season-complete',
+      id: `regular-season-complete-${standings.length}-${messages.length}`,
       type: 'Fixture',
       title: 'Regular season complete',
       body: 'All scheduled regular season fixtures have been played. Review the table and prepare for playoffs.',
@@ -256,7 +385,7 @@ function createInboxMessages({
   }
 
   messages.push({
-    id: 'league-position',
+    id: `league-position-${leaguePosition}-${userStanding?.wins ?? 0}-${userStanding?.losses ?? 0}`,
     type: 'Squad',
     title: leaguePosition > 0 ? `League position: ${getOrdinalPosition(leaguePosition)}` : 'League position pending',
     body: userStanding ? `${selectedTeam.name} have a ${userStanding.wins}-${userStanding.losses} record with ${userStanding.pointDifference >= 0 ? '+' : ''}${userStanding.pointDifference} point difference.` : 'Simulate your first game to generate a league position.',
