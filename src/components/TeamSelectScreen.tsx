@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { TeamLogo } from './TeamLogo';
 import { getTeamProfile } from '../data/teamProfiles';
 import { careerTracks } from '../data/careerPathways';
-import { leagueExpansionProfiles, type LeagueExpansionProfile } from '../data/worldBasketball';
+import { leagueExpansionProfiles } from '../data/worldBasketball';
 import type { Team } from '../types/basketball';
 
 type TeamSelectScreenProps = {
@@ -24,7 +24,6 @@ type TeamSelectScreenProps = {
 };
 
 export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreateCustomTeam }: TeamSelectScreenProps) {
-  const MAX_LOGO_UPLOAD_BYTES = 2 * 1024 * 1024;
   const [customTier, setCustomTier] = useState<'Top' | 'Mid' | 'Bottom'>('Mid');
   const [customName, setCustomName] = useState('');
   const [customCity, setCustomCity] = useState('');
@@ -34,9 +33,6 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
   const [customTertiaryColor, setCustomTertiaryColor] = useState('#38bdf8');
   const [customLogoUrl, setCustomLogoUrl] = useState<string | undefined>(undefined);
   const [customMiniLogoUrl, setCustomMiniLogoUrl] = useState<string | undefined>(undefined);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [expansionFilter, setExpansionFilter] = useState<'All' | 'Playable' | 'In Development' | 'Planned'>('All');
-  const [selectedLeaguePreview, setSelectedLeaguePreview] = useState<string>(leagueExpansionProfiles[0]?.leagueId ?? '');
   const highestReputation = [...teams].sort((a, b) => b.reputation - a.reputation)[0];
   const mostHistoric = [...teams].sort((a, b) => b.championships - a.championships)[0];
   const bestRebuild = [...teams].sort((a, b) => a.reputation - b.reputation || a.championships - b.championships)[0];
@@ -79,6 +75,24 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
       return;
     }
     setUploadError(null);
+    const reader = new FileReader();
+    reader.onload = () => setter(typeof reader.result === 'string' ? reader.result : undefined);
+    reader.readAsDataURL(file);
+  }
+
+  useEffect(() => {
+    setCustomName(`${selectedTeam.city} Custom`);
+    setCustomCity(selectedTeam.city);
+    setCustomShortName(selectedTeam.shortName);
+    setCustomPrimaryColor(selectedTeam.primaryColor);
+    setCustomSecondaryColor(selectedTeam.secondaryColor);
+    setCustomTertiaryColor(selectedTeam.tertiaryColor ?? '#38bdf8');
+    setCustomLogoUrl(selectedTeam.logoUrl);
+    setCustomMiniLogoUrl(selectedTeam.miniLogoUrl);
+  }, [selectedTeam.id]);
+
+  function handleUpload(file: File | null, setter: (value: string | undefined) => void) {
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setter(typeof reader.result === 'string' ? reader.result : undefined);
     reader.readAsDataURL(file);
@@ -139,30 +153,6 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
       <article className="panel result-detail-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">League Rules Preview</p>
-            <h3>What changes by region</h3>
-          </div>
-          <span className="chip">Clarity</span>
-        </div>
-        <div className="assistant-notes">
-          <div className="assistant-note">
-            <strong>BSBL (Current)</strong>
-            <span>Open-market contract management with club-led development pathways.</span>
-          </div>
-          <div className="assistant-note">
-            <strong>NABL (Planned)</strong>
-            <span>Draft-led talent entry, rookie contracts and rights windows to sign selected players.</span>
-          </div>
-          <div className="assistant-note">
-            <strong>Global Transfers (Planned)</strong>
-            <span>Inter-league transfer periods with country-specific signing constraints.</span>
-          </div>
-        </div>
-      </article>
-
-      <article className="panel result-detail-panel">
-        <div className="panel-header">
-          <div>
             <p className="eyebrow">Global League Expansion</p>
             <h3>Play beyond one country</h3>
           </div>
@@ -179,26 +169,7 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
             </button>
           ))}
         </div>
-        <div className="option-row" style={{ marginBottom: '0.75rem' }}>
-          <select
-            aria-label="Select league preview"
-            value={activeLeaguePreview?.leagueId ?? ''}
-            onChange={(event) => setSelectedLeaguePreview(event.target.value)}
-          >
-            {filteredLeagues.map((league) => (
-              <option key={league.leagueId} value={league.leagueId}>
-                {league.leagueName} · {league.country}
-              </option>
-            ))}
-          </select>
-        </div>
         <div className="assistant-notes">
-          {leagueExpansionProfiles.filter((league) => expansionFilter === 'All' ? true : league.status === expansionFilter).length === 0 && (
-            <div className="assistant-note">
-              <strong>No leagues in this status yet</strong>
-              <span>Try another filter to view expansion progress across regions.</span>
-            </div>
-          )}
           {leagueExpansionProfiles.filter((league) => expansionFilter === 'All' ? true : league.status === expansionFilter).map((league) => (
             <div className="assistant-note" key={league.leagueId}>
               <strong>{league.leagueName} · {league.country} · {league.status}</strong>
@@ -215,15 +186,6 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
               <span>{league.talentPipeline}</span>
             </div>
           ))}
-        </div>
-        {activeLeaguePreview && <LeaguePreviewCard league={activeLeaguePreview} />}
-        <div className="assistant-notes" style={{ marginTop: '0.75rem' }}>
-          <div className="assistant-note">
-            <strong>NABL Draft Rules Preview</strong>
-            <span>Bottom teams receive higher draft odds in a weighted lottery.</span>
-            <span>Unsigned draft rights are retained for a protected signing window.</span>
-            <span>Rookie contracts are structured and lower-risk than veteran deals.</span>
-          </div>
         </div>
       </article>
 
@@ -293,8 +255,6 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
                       <input value={customCity} onChange={(event) => setCustomCity(event.target.value)} placeholder="City" />
                       <input value={customShortName} onChange={(event) => setCustomShortName(event.target.value.toUpperCase().slice(0, 3))} placeholder="3-letter code" />
                     </div>
-                    {!isValidShortName && <span className="muted">Short code must be exactly 3 letters or numbers.</span>}
-                    {uploadError && <span className="muted">{uploadError}</span>}
                     <div className="option-row" style={{ marginTop: '0.5rem' }}>
                       <label className="muted">Primary <input type="color" value={customPrimaryColor} onChange={(event) => setCustomPrimaryColor(event.target.value)} /></label>
                       <label className="muted">Secondary <input type="color" value={customSecondaryColor} onChange={(event) => setCustomSecondaryColor(event.target.value)} /></label>
@@ -302,35 +262,16 @@ export function TeamSelectScreen({ selectedTeamId, teams, onSelectTeam, onCreate
                     </div>
                     <div className="option-row" style={{ marginTop: '0.5rem' }}>
                       <label className="muted">Main Logo <input type="file" accept="image/*" onChange={(event) => handleUpload(event.target.files?.[0] ?? null, setCustomLogoUrl)} /></label>
-                      {customLogoUrl && (
-                        <button className="option-button" onClick={() => setCustomLogoUrl(undefined)}>
-                          Clear Main Logo
-                        </button>
-                      )}
-                    </div>
-                    <div className="option-row" style={{ marginTop: '0.5rem' }}>
                       <label className="muted">Mini Logo <input type="file" accept="image/*" onChange={(event) => handleUpload(event.target.files?.[0] ?? null, setCustomMiniLogoUrl)} /></label>
-                      {customMiniLogoUrl && (
-                        <button className="option-button" onClick={() => setCustomMiniLogoUrl(undefined)}>
-                          Clear Mini Logo
-                        </button>
-                      )}
                     </div>
-                    {(customLogoUrl || customMiniLogoUrl) && (
-                      <div className="option-row" style={{ marginTop: '0.5rem' }}>
-                        {customLogoUrl && <img src={customLogoUrl} alt="Main logo preview" style={{ width: 56, height: 56, objectFit: 'cover' }} />}
-                        {customMiniLogoUrl && <img src={customMiniLogoUrl} alt="Mini logo preview" style={{ width: 40, height: 40, objectFit: 'cover' }} />}
-                      </div>
-                    )}
                   </div>
                   <button
                     className="secondary-action"
-                    disabled={!trimmedName || !trimmedCity || !isValidShortName}
                     onClick={() => onCreateCustomTeam({
                       baseTeamId: team.id,
-                      name: trimmedName || `${team.city} Custom`,
-                      city: trimmedCity || team.city,
-                      shortName: sanitizedShortName || team.shortName,
+                      name: customName.trim() || `${team.city} Custom`,
+                      city: customCity.trim() || team.city,
+                      shortName: (customShortName.trim() || team.shortName).toUpperCase().slice(0, 3),
                       tier: customTier,
                       primaryColor: customPrimaryColor,
                       secondaryColor: customSecondaryColor,

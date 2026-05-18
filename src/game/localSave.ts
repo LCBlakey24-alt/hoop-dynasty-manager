@@ -125,9 +125,6 @@ export function getBackupLocalSeasonSaveMeta() {
     return {
       savedAt: migratedSave.savedAt,
       teamId: migratedSave.selectedTeamId,
-      version: migratedSave.version,
-      resultsCount: migratedSave.results.length,
-      bytes: new TextEncoder().encode(backupRaw).length,
     };
   } catch {
     return null;
@@ -139,10 +136,22 @@ export function importLocalSeasonSave(rawSave: string) {
     const parsedSave = JSON.parse(rawSave) as Partial<LocalSeasonSave>;
     const migratedSave = migrateSave(parsedSave);
     if (!migratedSave) return null;
-    const existing = window.localStorage.getItem(SAVE_KEY);
-    if (existing) {
-      window.localStorage.setItem(SAVE_BACKUP_KEY, existing);
-    }
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(migratedSave));
+    return migratedSave;
+  } catch {
+    return null;
+  }
+}
+
+export function exportLocalSeasonSave() {
+  return window.localStorage.getItem(SAVE_KEY);
+}
+
+export function importLocalSeasonSave(rawSave: string) {
+  try {
+    const parsedSave = JSON.parse(rawSave) as Partial<LocalSeasonSave>;
+    const migratedSave = migrateSave(parsedSave);
+    if (!migratedSave) return null;
     window.localStorage.setItem(SAVE_KEY, JSON.stringify(migratedSave));
     return migratedSave;
   } catch {

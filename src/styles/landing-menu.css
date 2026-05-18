@@ -9,31 +9,6 @@
   animation: landingFadeIn 500ms ease;
 }
 
-.landing-screen,
-.landing-hero,
-.landing-splash,
-.mode-card,
-.league-roadmap-panel,
-.league-roadmap-item,
-.intro-cinematic {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-}
-
-.landing-copy,
-.mode-card p,
-.league-roadmap-item span {
-  color: #cbd5e1 !important;
-}
-
-.landing-splash h1,
-.landing-hero h2,
-.intro-cinematic h1 {
-  color: #f97316 !important;
-}
-
 .intro-screen {
   display: grid;
   place-items: center;

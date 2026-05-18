@@ -22,7 +22,7 @@ import { calculateStandings } from './game/calculateStandings';
 import { calculateBoardConfidence } from './game/boardConfidence';
 import { releasePlayer, renewPlayerContract } from './game/contracts';
 import { signFreeAgent } from './game/freeAgents';
-import { clearLocalSeasonSave, exportLocalSeasonSave, getBackupLocalSeasonSaveMeta, importLocalSeasonSave, loadLocalSeasonSave, restoreBackupLocalSeasonSave, saveLocalSeason, type LocalSeasonSaveMeta } from './game/localSave';
+import { clearLocalSeasonSave, exportLocalSeasonSave, importLocalSeasonSave, loadLocalSeasonSave, saveLocalSeason } from './game/localSave';
 import { applyPostGameCondition } from './game/playerCondition';
 import { applyPostGameDevelopment } from './game/playerDevelopment';
 import { applyTrainingFocus } from './game/training';
@@ -40,9 +40,7 @@ import type { Fixture, Player, PlayerConditionChange, PlayerDevelopmentChange, R
 type ActiveView = 'Landing' | 'Dashboard' | 'Inbox' | 'Team Select' | 'Roster' | 'Development' | 'Contracts' | 'Free Agents' | 'Board & Finance' | 'Tactics' | 'Schedule' | 'Results' | 'League' | 'Playoffs' | 'Summary' | 'Training';
 type DisplayDensity = 'Normal' | 'Compact' | 'Ultra';
 type FocusMode = 'My Team' | 'League';
-type MotionMode = 'Standard' | 'Reduced';
 type SimKeyEvent = 'Next My Game' | 'Playoffs Start' | 'Season End';
-const MAX_IMPORT_SAVE_BYTES = 5 * 1024 * 1024;
 const SIM_KEY_EVENT_HINTS: Record<SimKeyEvent, string> = {
   'Next My Game': 'Advance until your club appears again on the schedule.',
   'Playoffs Start': 'Fast-forward through the remaining regular-season fixtures.',
@@ -106,7 +104,7 @@ export function App() {
     return window.localStorage.getItem('hoop-dynasty-motion-mode') === 'Reduced' ? 'Reduced' : 'Standard';
   });
   const [rngSeed, setRngSeed] = useState<number>(initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : generateSeed());
-  const [backupMeta, setBackupMeta] = useState<LocalSeasonSaveMeta | null>(() => typeof window === 'undefined' ? null : getBackupLocalSeasonSaveMeta());
+  const [backupMeta, setBackupMeta] = useState<{ savedAt: string; teamId: string } | null>(() => typeof window === 'undefined' ? null : getBackupLocalSeasonSaveMeta());
   const { rng: simulationRng, reset: resetSimulationRng, rngCallsRef } = useSimulationRng(
     initialSave?.rngSeed && initialSave.rngSeed > 0 ? initialSave.rngSeed : rngSeed,
     initialSave?.rngCalls ?? 0,
@@ -137,11 +135,6 @@ export function App() {
   useEffect(() => {
     window.localStorage.setItem('hoop-dynasty-focus-mode', focusMode);
   }, [focusMode]);
-
-  useEffect(() => {
-    document.body.classList.toggle('reduced-motion', motionMode === 'Reduced');
-    window.localStorage.setItem('hoop-dynasty-motion-mode', motionMode);
-  }, [motionMode]);
 
   useEffect(() => {
     document.body.style.setProperty('--team-primary', selectedTeam.primaryColor);
@@ -267,27 +260,11 @@ export function App() {
   function handleImportSave(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_IMPORT_SAVE_BYTES) {
-      setSimNotice('Import failed. Save file is larger than 5MB.');
-      event.target.value = '';
-      return;
-    }
-    const looksLikeJson = file.type === 'application/json' || file.name.toLowerCase().endsWith('.json');
-    if (!looksLikeJson) {
-      setSimNotice('Import failed. Please choose a .json save file.');
-      event.target.value = '';
-      return;
-    }
     const reader = new FileReader();
-    reader.onerror = () => {
-      setSimNotice('Import failed. Could not read selected file.');
-      event.target.value = '';
-    };
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? importLocalSeasonSave(reader.result) : null;
       if (!result) {
         setSimNotice('Import failed. Invalid save file.');
-        event.target.value = '';
         return;
       }
       const nextSeed = result.rngSeed > 0 ? result.rngSeed : generateSeed();
@@ -303,38 +280,12 @@ export function App() {
       setSavedAt(result.savedAt);
       setTrainingFocus(result.trainingFocus);
       setRngSeed(nextSeed);
-      resetSimulationRng(nextSeed, result.rngCalls);
+      resetSimulationRng(nextSeed);
       setActiveView('Dashboard');
       setSimNotice('Save imported.');
-      setBackupMeta(getBackupLocalSeasonSaveMeta());
-      event.target.value = '';
     };
     reader.readAsText(file);
-  }
-
-  function handleRestoreBackupSave() {
-    const result = restoreBackupLocalSeasonSave();
-    if (!result) {
-      setSimNotice('No backup save found.');
-      return;
-    }
-    const nextSeed = result.rngSeed > 0 ? result.rngSeed : generateSeed();
-    setResults(result.results);
-    setPlayoffResults(result.playoffResults);
-    setSelectedTeamId(result.selectedTeamId);
-    const importedTeam = result.selectedTeamState?.id === result.selectedTeamId ? result.selectedTeamState : getTeam(result.selectedTeamId);
-    setSelectedTeamState(importedTeam);
-    setRotationPlan(normaliseRotation(importedTeam, result.rotationPlan ?? createDefaultRotation(importedTeam)));
-    setLatestConditionReport(result.latestConditionReport);
-    setLatestDevelopmentReport(result.latestDevelopmentReport);
-    setTactics(result.tactics);
-    setSavedAt(result.savedAt);
-    setTrainingFocus(result.trainingFocus);
-    setRngSeed(nextSeed);
-    resetSimulationRng(nextSeed, result.rngCalls);
-    setActiveView('Dashboard');
-    setSimNotice('Backup restored.');
-    setBackupMeta(getBackupLocalSeasonSaveMeta());
+    event.target.value = '';
   }
 
   function handleSelectTeam(teamId: string) {
@@ -623,7 +574,6 @@ export function App() {
     return (
       <LandingScreen
         hasSave={hasSave}
-        reducedMotion={motionMode === 'Reduced'}
         selectedTeamName={selectedTeam.name}
         onContinue={() => setActiveView(hasSave ? 'Dashboard' : 'Team Select')}
         onNewFranchise={handleStartNewFranchise}
@@ -742,7 +692,6 @@ export function App() {
             handleResetSeason={handleResetSeason}
             handleExportSave={handleExportSave}
             handleOpenImportSave={() => importInputRef.current?.click()}
-            handleRestoreBackupSave={handleRestoreBackupSave}
             handleSimulateCurrentRound={handleSimulateCurrentRound}
             handleSimulateNextFixture={handleSimulateNextFixture}
             handleSimulateRestOfSeason={handleSimulateRestOfSeason}
@@ -893,7 +842,6 @@ type DashboardViewProps = {
   handleResetSeason: () => void;
   handleExportSave: () => void;
   handleOpenImportSave: () => void;
-  handleRestoreBackupSave: () => void;
   handleSimulateCurrentRound: () => void;
   handleSimulateNextFixture: () => void;
   handleSimulateRestOfSeason: () => void;
@@ -907,7 +855,7 @@ type DashboardViewProps = {
   nextMatchupLabel: string | null;
   results: SimulatedGameResult[];
   savedAt: string | null;
-  backupMeta: LocalSeasonSaveMeta | null;
+  backupMeta: { savedAt: string; teamId: string } | null;
   selectedTeam: Team;
   tiredCount: number;
   injuredCount: number;
@@ -933,7 +881,6 @@ function DashboardView({
   handleResetSeason,
   handleExportSave,
   handleOpenImportSave,
-  handleRestoreBackupSave,
   handleSimulateCurrentRound,
   handleSimulateNextFixture,
   handleSimulateRestOfSeason,
@@ -1067,21 +1014,9 @@ function DashboardView({
         <p className="muted">
           {savedAt ? `Last saved ${new Date(savedAt).toLocaleString()}` : 'No saved season yet.'}
         </p>
-        <p className="muted">
-          {backupMeta ? `Backup available: ${new Date(backupMeta.savedAt).toLocaleString()}` : 'No backup snapshot yet.'}
-        </p>
-        {backupMeta && (
-          <p className="muted">
-            Team {backupTeam?.shortName ?? backupMeta.teamId} · {backupMeta.resultsCount} games · v{backupMeta.version} · {Math.max(1, Math.round(backupMeta.bytes / 1024))} KB · {backupAgeHours}h old · {backupFreshness}
-          </p>
-        )}
-        {backupFreshness === 'Stale' && (
-          <p className="warning">Backup is over 24 hours old. Consider exporting or simulating to refresh safety coverage.</p>
-        )}
         <div className="option-row" style={{ marginBottom: '0.75rem' }}>
           <button className="option-button" onClick={handleExportSave}>Export Save</button>
           <button className="option-button" onClick={handleOpenImportSave}>Import Save</button>
-          <button className="option-button" disabled={!backupMeta} onClick={handleRestoreBackupSave}>Restore Backup</button>
         </div>
         <button className="secondary-action danger-action" onClick={handleResetSeason}>Reset Local Season</button>
       </article>

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { careerTracks, pathwayRulesByLeague } from '../data/careerPathways';
 
 type LandingScreenProps = {
   hasSave: boolean;
@@ -38,7 +37,7 @@ const franchiseHighlights = [
   'Roster growth tracking with position edits',
 ];
 
-export function LandingScreen({ hasSave, reducedMotion, selectedTeamName, onContinue, onNewFranchise }: LandingScreenProps) {
+export function LandingScreen({ hasSave, selectedTeamName, onContinue, onNewFranchise }: LandingScreenProps) {
   const [showIntro, setShowIntro] = useState(() => {
     if (typeof window === 'undefined') return true;
     return window.localStorage.getItem('hoop-dynasty-hide-intro') !== '1';
@@ -62,7 +61,6 @@ export function LandingScreen({ hasSave, reducedMotion, selectedTeamName, onCont
           <div className="intro-logo-mark" aria-hidden>RQ</div>
           <h1>Hardwood Dynasty</h1>
           <p className="landing-copy">A management journey from prospect projects to championship banners.</p>
-          {reducedMotion && <p className="muted">Reduced motion is enabled for accessibility.</p>}
           <div className="landing-actions">
             <button className="primary-action" onClick={handleStartGame}>Start Game</button>
             <button className="secondary-action" onClick={hasSave ? onContinue : onNewFranchise}>
@@ -150,36 +148,6 @@ export function LandingScreen({ hasSave, reducedMotion, selectedTeamName, onCont
             <div className="league-roadmap-item" key={league.name}>
               <strong>{league.name}</strong>
               <span>{league.status}</span>
-            </div>
-          ))}
-        </div>
-      </article>
-
-      <article className="panel league-roadmap-panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Career Pathways</p>
-            <h3>Youth to pro, manager and player journeys</h3>
-          </div>
-          <span className="chip">Career mode foundation</span>
-        </div>
-        <div className="assistant-notes">
-          {careerTracks.map((track) => (
-            <div className="assistant-note" key={track.id}>
-              <strong>{track.title} · {track.perspective}</strong>
-              <span>{track.summary}</span>
-              <span>Start: {track.entryStage} → Goal: {track.endGoal}</span>
-              <span>Key stages: {track.stages.map((stage) => stage.stage).join(' → ')}</span>
-            </div>
-          ))}
-        </div>
-        <div className="assistant-notes" style={{ marginTop: '0.75rem' }}>
-          {pathwayRulesByLeague.map((rule) => (
-            <div className="assistant-note" key={rule.leagueId}>
-              <strong>{rule.leagueId.toUpperCase()} pathway rules</strong>
-              <span>Youth academies: {rule.allowsYouthAcademy ? 'Enabled' : 'Disabled'} · College draft: {rule.allowsCollegeDraft ? 'Enabled' : 'Disabled'}</span>
-              <span>Women pipeline: {rule.womenPipelineEnabled ? 'Enabled' : 'Disabled'} · Inter-league transfers: {rule.allowsInterLeagueTransfers ? 'Enabled' : 'Disabled'}</span>
-              <span>{rule.notes}</span>
             </div>
           ))}
         </div>
